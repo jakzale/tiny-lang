@@ -18,12 +18,14 @@ module TinyLang.Field.Evaluator
     , evalUnOp
     , evalBinOp
     , evalExprUni
+    , evalStatementUni
     , evalExpr
     , evalExprWithEnv
     , denoteUniConst
     , denoteSomeUniConst
     , denoteExpr
     , normExpr
+    , normStatement
     , instStatement
     , instExpr
     ) where
@@ -176,7 +178,6 @@ evalExprUni env (EAppBinOp op e1 e2) = do
     e1R <- evalExpr env e1
     e2R <- evalExpr env e2
     evalBinOp op e1R e2R
-evalExprUni env (EStatement stat expr) = evalStatementUni env stat expr
 
 -- | A recursive evaluator for expressions.
 evalExpr
@@ -211,15 +212,11 @@ denoteExpr env = fmap denoteUniConst . evalExprUni env
 
 normStatement
     :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
-    => Env (SomeUniConst f) -> Statement f -> Expr f a -> m (Expr f a)
-normStatement env (ELet (UniVar uni var) def) rest = do
-    defN <- normExpr env def
-    case defN of
-        EConst uniConst -> normExpr (insertVar var (Some uniConst) env) rest
-        _             -> EStatement (ELet (UniVar uni var) defN) <$> normExpr env rest
-normStatement env (EAssert expr) rest = do
-    exprN <- normExpr env expr
-    EStatement (EAssert exprN) <$> normExpr env rest
+    => Env (SomeUniConst f) -> Statement f -> m (Statement f)
+normStatement env (ELet uniVar def) = do
+    ELet uniVar <$> normExpr env def
+normStatement env (EAssert expr) = do
+    EAssert <$> normExpr env expr
 
 -- | A recursive normalizer for expressions.
 normExpr
@@ -252,7 +249,6 @@ normExpr env (EAppBinOp op e1 e2) = do
             EConst <$> evalBinOp op x1 x2
         _                                            ->
             return $ EAppBinOp op e1N e2N
-normExpr env (EStatement stat expr) = normStatement env stat expr
 
 -- | Instantiate some of the variables of a statement with values.
 instStatement
@@ -272,4 +268,3 @@ instExpr env expr@(EVar uniVar@(UniVar uni var)) =
 instExpr env (EIf e e1 e2) = EIf <$> instExpr env e <*> instExpr env e1 <*> instExpr env e2
 instExpr env (EAppUnOp op e) = EAppUnOp op <$> instExpr env e
 instExpr env (EAppBinOp op e1 e2) = EAppBinOp op <$> instExpr env e1 <*> instExpr env e2
-instExpr env (EStatement stat expr) = EStatement <$> instStatement env stat <*> instExpr env expr

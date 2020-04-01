@@ -23,8 +23,8 @@ module TinyLang.Field.Typed.Core
     , withKnownUni
     , VarSig (..)
     , ScopedVarSigs (..)
-    , exprVarSigs
-    , exprFreeVarSigs
+    , stmtVarSigs
+    , stmtFreeVarSigs
     , supplyFromAtLeastFree
     , uniOfExpr
     ) where
@@ -89,7 +89,6 @@ data Expr f a where
     EIf        :: Expr f Bool -> Expr f a -> Expr f a -> Expr f a
     EAppUnOp   :: UnOp f a b -> Expr f a -> Expr f b
     EAppBinOp  :: BinOp f a b c -> Expr f a -> Expr f b -> Expr f c
-    EStatement :: Statement f -> Expr f a -> Expr f a
 
 instance (Field f, af ~ AField f) => Field (Expr f af) where
     zer = EConst zer
@@ -144,7 +143,6 @@ uniOfExpr (EVar (UniVar uni _))     = uni
 uniOfExpr (EAppUnOp op _)           = withUnOpUnis op $ \_ resUni -> resUni
 uniOfExpr (EAppBinOp op _ _)        = withBinOpUnis op $ \_ _ resUni -> resUni
 uniOfExpr (EIf _ x _)               = uniOfExpr x
-uniOfExpr (EStatement _ expr)       = uniOfExpr expr
 
 withGeqUnOp :: UnOp f a1 b1 -> UnOp f a2 b2 -> d -> ((a1 ~ a2, b1 ~ b2) => d) -> d
 withGeqUnOp unOp1 unOp2 z y =
@@ -187,7 +185,6 @@ instance Eq f => Eq (Expr f a) where
     EIf b1 x1 y1       == EIf b2 x2 y2       = b1 == b2 && x1 == x2 && y1 == y2
     EAppUnOp o1 x1     == EAppUnOp o2 x2     = withGeqUnOp o1 o2 False $ x1 == x2
     EAppBinOp o1 x1 y1 == EAppBinOp o2 x2 y2 = withGeqBinOp o1 o2 False $ x1 == x2 && y1 == y2
-    EStatement st1 e1  == EStatement st2 e2  = st1 == st2 && e1 == e2
 
     -- Here we explicitly pattern match on the first argument again and always return 'False'.
     -- This way we'll get a warning when an additional constructor is added to 'Expr',
@@ -197,7 +194,6 @@ instance Eq f => Eq (Expr f a) where
     EIf        {} == _ = False
     EAppUnOp   {} == _ = False
     EAppBinOp  {} == _ = False
-    EStatement {} == _ = False
 
 withKnownUni :: Uni f a -> (KnownUni f a => c) -> c
 withKnownUni Bool   = id
@@ -228,14 +224,14 @@ isTracked uniq x env =
         Nothing -> False
 
 -- TODO: test me somehow.
-exprVarSigs :: Expr f a -> ScopedVarSigs f
-exprVarSigs = goExpr $ ScopedVarSigs mempty mempty where
-    goStat :: ScopedVarSigs f -> Statement f -> ScopedVarSigs f
-    goStat sigs (ELet uniVar def) = ScopedVarSigs free $ insertUnique uniq sig bound where
+stmtVarSigs :: Statement f -> ScopedVarSigs f
+stmtVarSigs = goStmt $ ScopedVarSigs mempty mempty where
+    goStmt :: ScopedVarSigs f -> Statement f -> ScopedVarSigs f
+    goStmt sigs (ELet uniVar def) = ScopedVarSigs free $ insertUnique uniq sig bound where
         UniVar uni (Var uniq name) = uniVar
         sig = VarSig name uni
         ScopedVarSigs free bound = goExpr sigs def
-    goStat sigs (EAssert expr) = goExpr sigs expr
+    goStmt sigs (EAssert expr) = goExpr sigs expr
 
     goExpr :: ScopedVarSigs f -> Expr f a -> ScopedVarSigs f
     goExpr sigs (EConst _) = sigs
@@ -249,11 +245,10 @@ exprVarSigs = goExpr $ ScopedVarSigs mempty mempty where
     goExpr sigs (EAppUnOp _ x) = goExpr sigs x
     goExpr sigs (EAppBinOp _ x y) = goExpr (goExpr sigs x) y
     goExpr sigs (EIf b x y) = goExpr (goExpr (goExpr sigs b) x) y
-    goExpr sigs (EStatement st e) = goExpr (goStat sigs st) e
 
-exprFreeVarSigs :: Expr f a -> Env (VarSig f)
-exprFreeVarSigs = _scopedVarSigsFree . exprVarSigs
+stmtFreeVarSigs :: Statement f -> Env (VarSig f)
+stmtFreeVarSigs = _scopedVarSigsFree . stmtVarSigs
 
-supplyFromAtLeastFree :: MonadSupply m => Expr f a -> m ()
+supplyFromAtLeastFree :: MonadSupply m => Statement f -> m ()
 supplyFromAtLeastFree =
-    supplyFromAtLeast . freeUniqueIntMap . unEnv . _scopedVarSigsFree . exprVarSigs
+    supplyFromAtLeast . freeUniqueIntMap . unEnv . _scopedVarSigsFree . stmtVarSigs

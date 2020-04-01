@@ -84,11 +84,6 @@ exprToString s (EIf e e1 e2)        = concat
     , " else "
     , exprToString1 s e2
     ]
-exprToString s (EStatement stat e)  = concat
-    [ statementToString s stat
-    , "; "
-    , exprToString s e
-    ]
 
 someExprToString :: TextField f => PrintStyle -> SomeUniExpr f -> String
 someExprToString s = forget $ exprToString s

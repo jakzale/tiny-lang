@@ -1,15 +1,15 @@
 module TinyLang.Field.Rename
-    ( renameExpr
+    ( renameStmt
     ) where
 
 import           TinyLang.Prelude
 
 import           TinyLang.Field.Typed.Core
 
-renameExpr :: MonadSupply m => Expr f a -> m (Expr f a)
-renameExpr expr = do
-    supplyFromAtLeastFree expr
-    runRenameM $ renameExprM expr
+renameStmt :: MonadSupply m => Statement f -> m (Statement f)
+renameStmt stmt = do
+    supplyFromAtLeastFree stmt
+    runRenameM $ renameStatementM stmt
 
 type RenameM = ReaderT (Env Unique) Supply
 
@@ -28,11 +28,11 @@ renameVarM var = do
         Nothing   -> var
         Just uniq -> setUnique uniq var
 
-withRenamedStatementM :: Statement f -> (Statement f -> RenameM c) -> RenameM c
-withRenamedStatementM (ELet (UniVar uni var) def) cont = do
+renameStatementM :: Statement f -> RenameM (Statement f)
+renameStatementM (ELet (UniVar uni var) def) = do
     defRen <- renameExprM def
-    withFreshenedVar var $ \varFr -> cont $ ELet (UniVar uni varFr) defRen
-withRenamedStatementM (EAssert expr)              cont = renameExprM expr >>= cont . EAssert
+    withFreshenedVar var $ \varFr -> pure $ ELet (UniVar uni varFr) defRen 
+renameStatementM (EAssert expr) = EAssert <$> renameExprM expr
 
 renameExprM :: Expr f a -> RenameM (Expr f a)
 renameExprM (EConst uniConst)            = pure $ EConst uniConst
@@ -41,5 +41,4 @@ renameExprM (EIf cond expr1 expr2)       =
     EIf <$> renameExprM cond <*> renameExprM expr1 <*> renameExprM expr2
 renameExprM (EAppUnOp op expr)           = EAppUnOp op <$> renameExprM expr
 renameExprM (EAppBinOp op expr1 expr2)   = EAppBinOp op <$> renameExprM expr1 <*> renameExprM expr2
-renameExprM (EStatement stat expr)       =
-    withRenamedStatementM stat $ \statRen -> EStatement statRen <$> renameExprM expr
+

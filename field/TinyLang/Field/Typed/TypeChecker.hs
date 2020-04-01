@@ -145,10 +145,6 @@ inferExpr (R.EAppBinOp rBinOp l m) =
 inferExpr (R.EAppUnOp rUnOp l) =
     withTypedUnOp rUnOp $ \tUnOp ->
         SomeOf knownUni <$> (T.EAppUnOp tUnOp <$> checkExpr l)
-inferExpr (R.EStatement s l) = do
-    tS <- checkStatement s
-    SomeOf uni tL <- inferExpr l
-    pure $ SomeOf uni $ (foldr T.EStatement) tL tS
 inferExpr (R.EIf l m n) = do
     tL <- checkExpr l
     SomeOf uni tM <- inferExpr m
