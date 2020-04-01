@@ -43,7 +43,7 @@ parseScopedExpr str = do
     exprRaw <- parseString (pTop @f) "" str
     Scoped scopeTotal (SomeOf uni exprTyped) <- typeCheck exprRaw
     exprTypedRen <- renameExpr exprTyped
-    let indicesFree = IntMap.keysSet . unEnv $ exprFreeVarSigns exprTypedRen
+    let indicesFree = IntMap.keysSet . unEnv $ exprFreeVarSigs exprTypedRen
         isFree var = unUnique (_varUniq var) `IntSet.member` indicesFree
         scopeFree = Map.filter isFree scopeTotal
     return . Scoped scopeFree $ SomeOf uni exprTypedRen

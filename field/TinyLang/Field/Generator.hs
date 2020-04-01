@@ -441,9 +441,9 @@ instance (Field f, Arbitrary f) => Arbitrary (SomeUniExpr f) where
                 ELet (UniVar uni _) def -> [SomeOf uni def]
                 EAssert e               -> [SomeOf Bool e]
 
-genEnvFromVarSigns :: (Field f, Arbitrary f) => Env (VarSign f) -> Gen (Env (SomeUniConst f))
-genEnvFromVarSigns =
-    traverse $ \(VarSign _ (uni :: Uni f a)) ->
+genEnvFromVarSigs :: (Field f, Arbitrary f) => Env (VarSig f) -> Gen (Env (SomeUniConst f))
+genEnvFromVarSigs =
+    traverse $ \(VarSig _ (uni :: Uni f a)) ->
         Some <$> withKnownUni uni (arbitrary :: Gen (UniConst f a))
 
 -- | Generate a random ExprWithEnv.  Note that you can say things like
@@ -453,9 +453,9 @@ genEnvFromVarSigns =
 instance (Field f, Arbitrary f) => Arbitrary (ExprWithEnv f) where
     arbitrary = do
         someUniExpr <- arbitrary
-        vals <- forget (genEnvFromVarSigns . exprFreeVarSigns) someUniExpr
+        vals <- forget (genEnvFromVarSigs . exprFreeVarSigs) someUniExpr
         return $ ExprWithEnv someUniExpr vals
     shrink (ExprWithEnv someUniExpr (Env vals)) =
         -- TODO: test me.
         flip map (shrink someUniExpr) $ \shrunk@(SomeOf _ expr) ->
-            ExprWithEnv shrunk . Env . IntMap.intersection vals . unEnv $ exprFreeVarSigns expr
+            ExprWithEnv shrunk . Env . IntMap.intersection vals . unEnv $ exprFreeVarSigs expr
