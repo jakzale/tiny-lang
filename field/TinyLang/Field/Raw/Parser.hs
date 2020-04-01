@@ -341,16 +341,14 @@ pTerm =
     [ try (EConst   <$> pConst)
     -- This can backtrack for keywords
     , try (EVar     <$> pVar)
-    , EStatement    <$> (pStatement     <* symbol ";")
-                    <*> pExpr
     , EIf           <$> (keyword "if"   *> pExpr)
                     <*> (keyword "then" *> pExpr)
                     <*> (keyword "else" *> pExpr)
     , parens pExpr
     ]
 
-pStatements :: TextField f => ParserT m [RawStatement f]
-pStatements = many (pStatement <* symbol ";")
+pExpr :: TextField f => ParserT m (RawExpr f)
+pExpr = Comb.makeExprParser pTerm operatorTable
 
 pStatement :: TextField f => ParserT m (RawStatement f)
 pStatement =
@@ -367,8 +365,13 @@ pStatement =
               <*   keyword "end"
     ]
 
-pExpr :: TextField f => ParserT m (RawExpr f)
-pExpr = Comb.makeExprParser pTerm operatorTable
+pStatements :: TextField f => ParserT m (RawStatements f)
+pStatements =
+    choice
+    -- This can backtrack for statement starting with a "("
+    [ try (parens pStatements)
+    , many (pStatement <* symbol ";")
+    ]
 
-pTop :: TextField f => ParserT m (RawExpr f)
-pTop = top pExpr
+pTop :: TextField f => ParserT m (RawStatements f)
+pTop = top pStatements
