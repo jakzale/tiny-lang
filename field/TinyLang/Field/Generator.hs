@@ -337,13 +337,13 @@ boundedArbitraryExprI vars size             = frequency
                 <$> boundedArbitraryExpr  vars size'
                 <*> boundedArbitraryExprI vars size'
                 <*> boundedArbitraryExprI vars size')
-    , (2, do
-            uniVar <- genFreshUniVar
-            let vars' = Some uniVar : vars
-                size' = size `Prelude.div` 2
-            EStatement . ELet uniVar
-                <$> boundedArbitraryExprI vars size'
-                <*> boundedArbitraryExprI vars' size')
+    -- , (2, do
+    --         uniVar <- genFreshUniVar
+    --         let vars' = Some uniVar : vars
+    --             size' = size `Prelude.div` 2
+    --         EStatement . ELet uniVar
+    --             <$> boundedArbitraryExprI vars size'
+    --             <*> boundedArbitraryExprI vars' size')
     , (2, do
             let size' = size - 1
             EAppUnOp
@@ -422,7 +422,7 @@ instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (Expr f a) where
         EVar _ -> []
         -- TODO: we can safely drop an assertion and we can drop a let-expression when
         -- the let-bound variable is not used in @expr@.
-        EStatement stat expr -> uncurry EStatement <$> shrink (stat, expr)
+        -- EStatement stat expr -> uncurry EStatement <$> shrink (stat, expr)
 
 -- An instance that QuickCheck can use for tests.
 instance (Field f, Arbitrary f) => Arbitrary (SomeUniExpr f) where
@@ -437,9 +437,9 @@ instance (Field f, Arbitrary f) => Arbitrary (SomeUniExpr f) where
             EIf e _ _ -> [SomeOf Bool e]
             EConst _ -> []
             EVar _ -> []
-            EStatement stat _ -> case stat of
-                ELet (UniVar uni _) def -> [SomeOf uni def]
-                EAssert e               -> [SomeOf Bool e]
+            -- EStatement stat _ -> case stat of
+            --     ELet (UniVar uni _) def -> [SomeOf uni def]
+            --     EAssert e               -> [SomeOf Bool e]
 
 genEnvFromVarSigs :: (Field f, Arbitrary f) => Env (VarSig f) -> Gen (Env (SomeUniConst f))
 genEnvFromVarSigs =

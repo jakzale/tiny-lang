@@ -39,7 +39,7 @@ forgetIDs (EVar uvar)          = EVar $ forgetID uvar
 forgetIDs (EAppUnOp op e)      = EAppUnOp op (forgetIDs e)
 forgetIDs (EAppBinOp op e1 e2) = EAppBinOp op (forgetIDs e1) (forgetIDs e2)
 forgetIDs (EIf e e1 e2)        = EIf (forgetIDs e) (forgetIDs e1) (forgetIDs e2)
-forgetIDs (EStatement stat e)  = EStatement (forgetStatementIDs stat) (forgetIDs e)
+-- forgetIDs (EStatement stat e)  = EStatement (forgetStatementIDs stat) (forgetIDs e)
 
 {- Call this with eg
        quickCheck (withMaxSuccess 1000 (prop_Ftest :: SomeUniExpr Rational -> Bool))
@@ -73,29 +73,30 @@ instance (Field f, Arbitrary f) => Arbitrary (Binding f) where
         withOneofUnis $ \(_ :: Uni f a) ->
             Binding @f @a . unDefaultUniVar <$> arbitrary <*> arbitrary
 
-prop_nestedELet
-    :: forall f. (Eq f, TextField f)
-    => [Binding f] -> SomeUniExpr f -> Either String ()
-prop_nestedELet bindings body0 = prop_Ftest $ foldr bind body0 bindings where
-    bind :: Binding f -> SomeUniExpr f -> SomeUniExpr f
-    bind (Binding uniVar body) (SomeOf uni expr) =
-        SomeOf uni $ EStatement (ELet uniVar body) expr
+-- prop_nestedELet
+--     :: forall f. (Eq f, TextField f)
+--     => [Binding f] -> SomeUniExpr f -> Either String ()
+-- prop_nestedELet bindings body0 = prop_Ftest $ foldr bind body0 bindings where
+--     bind :: Binding f -> SomeUniExpr f -> SomeUniExpr f
+--     bind (Binding uniVar body) (SomeOf uni expr) =
+--         SomeOf uni $ EStatement (ELet uniVar body) expr
 
 test_checkParseGeneric :: TestTree
 test_checkParseGeneric =
     testProperty "checkParseGeneric2" $
         withMaxSuccess 1000 . property $ prop_Ftest @JJ.F
 
-test_checkParseNestedLets :: TestTree
-test_checkParseNestedLets =
-    testProperty "checkParseNestedLets" $
-        withMaxSuccess 100 . property $ prop_nestedELet @F17
+-- test_checkParseNestedLets :: TestTree
+-- test_checkParseNestedLets =
+--     testProperty "checkParseNestedLets" $
+--         withMaxSuccess 100 . property $ prop_nestedELet @F17
 
 test_printerParserRoundtrip :: TestTree
 test_printerParserRoundtrip =
     testGroup "printerParserRoundtrip"
         [ test_checkParseGeneric
-        , test_checkParseNestedLets
+        -- , test_checkParseGeneric2
+        -- , test_checkParseNestedLets
         ]
 
 parsePrint :: String -> String
