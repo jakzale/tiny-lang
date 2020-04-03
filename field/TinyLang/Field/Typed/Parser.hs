@@ -35,6 +35,8 @@ instance TextField f => IsString (Scoped (Some (Expr f))) where
 -- instance TextField f => IsString (Some (Expr f)) where
 --     fromString = _scopedValue <$> fromString
 
+
+
 -- | Parse a @String@ and return @Either@ an error message or an @Expr@ of some type.
 -- If the result is an error, then return the latest 'Scope', otherwise return the 'Scope'
 -- consisting of all free variables of the expression.
@@ -42,14 +44,14 @@ instance TextField f => IsString (Scoped (Some (Expr f))) where
 parseScopedExpr
     :: forall f m. (MonadError String m, MonadSupply m, TextField f)
     => String -> m (Scoped (SomeUniExpr f))
-parseScopedExpr str = do undefined
-    -- exprRaw <- parseString (pTop @f) "" str
-    -- Scoped scopeTotal (SomeOf uni exprTyped) <- typeCheck exprRaw
-    -- exprTypedRen <- renameExpr exprTyped
-    -- let indicesFree = IntMap.keysSet . unEnv $ exprFreeVarSigs exprTypedRen
-    --     isFree var = unUnique (_varUniq var) `IntSet.member` indicesFree
-    --     scopeFree = Map.filter isFree scopeTotal
-    -- return . Scoped scopeFree $ SomeOf uni exprTypedRen
+parseScopedExpr str = do
+    exprRaw <- parseString (pTopExpr @f) "" str
+    Scoped scopeTotal (SomeOf uni exprTyped) <- typeCheck exprRaw
+    exprTypedRen <- renameExpr exprTyped
+    let indicesFree = IntMap.keysSet . unEnv $ exprFreeVarSigs exprTypedRen
+        isFree var = unUnique (_varUniq var) `IntSet.member` indicesFree
+        scopeFree = Map.filter isFree scopeTotal
+    return . Scoped scopeFree $ SomeOf uni exprTypedRen
 
 -- | Parse a @String@ and return @Either@ an error message or an @Expr@ of some type.
 parseExpr
@@ -57,26 +59,19 @@ parseExpr
     => String -> m (SomeUniExpr f)
 parseExpr = fmap _scopedValue . parseScopedExpr
 
+
 parseScopedStmts
     :: forall f m. (MonadError String m, MonadSupply m, TextField f)
     => String -> m (Scoped [Statement f])
 parseScopedStmts str = do
-    undefined
-    -- case errorOrSomeUniExpr of
-    --     Left err -> return . Scoped totalScope $ Left err
-    --     Right rawStmts -> do
-    --         typed <- runExceptT (typeStatements rawStmts)
-    --         case typed of
-    --             Left err' -> return . Scoped totalScope $ Left err'
-    --             Right stmts -> do
-    --                 stmtsRen <- renameStmts stmts
-    --                 let freeIndices = IntMap.keysSet . unEnv $ stmtsFreeVarSigs stmtsRen
-    --                     isFree var = unUnique (_varUniq var) `IntSet.member` freeIndices
-    --                     freeScope = Map.filter isFree totalScope
-    --                 return . Scoped freeScope . Right $ stmtsRen
+    stmtsRaw <- parseString (pTop @f) "" str
+    Scoped scopeTotal stmtsTyped <- typeStatements stmtsRaw
+    stmtsTypedRen <- renameStmts stmtsTyped
+    let indicesFree = IntMap.keysSet . unEnv $ stmtsFreeVarSigs stmtsTypedRen
+        isFree var = unUnique (_varUniq var) `IntSet.member` indicesFree
+        scopeFree = Map.filter isFree scopeTotal
+    return . Scoped scopeFree $ stmtsTypedRen
 
-
--- | Parse a @String@ and return @Either@ an error message or an @Expr@ of some type.
 parseStmts
     :: forall f m. (MonadError String m, MonadSupply m, TextField f)
     => String -> m [Statement f]

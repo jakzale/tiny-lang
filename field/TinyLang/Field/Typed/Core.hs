@@ -26,7 +26,10 @@ module TinyLang.Field.Typed.Core
     , stmtVarSigs
     , stmtFreeVarSigs
     , stmtsFreeVarSigs
-    , supplyFromAtLeastFree
+    , exprVarSigs
+    , exprFreeVarSigs
+    , exprSupplyFromAtLeastFree
+    , stmtSupplyFromAtLeastFree
     , uniOfExpr
     ) where
 
@@ -225,34 +228,45 @@ isTracked uniq x env =
         Nothing -> False
 
 -- TODO: test me somehow.
-stmtVarSigs :: Statement f -> ScopedVarSigs f
-stmtVarSigs = goStmt $ ScopedVarSigs mempty mempty where
-    goStmt :: ScopedVarSigs f -> Statement f -> ScopedVarSigs f
-    goStmt sigs (ELet uniVar def) = ScopedVarSigs free $ insertUnique uniq sig bound where
-        UniVar uni (Var uniq name) = uniVar
+stmtVarSigs' :: ScopedVarSigs f -> Statement f -> ScopedVarSigs f
+stmtVarSigs' sigs (ELet uniVar def) = ScopedVarSigs free $ insertUnique uniq sig bound where
+    UniVar uni (Var uniq name) = uniVar
+    sig = VarSig name uni
+    ScopedVarSigs free bound = exprVarSigs' sigs def
+stmtVarSigs' sigs (EAssert expr) = exprVarSigs' sigs expr
+
+exprVarSigs' :: ScopedVarSigs f -> Expr f a -> ScopedVarSigs f
+exprVarSigs' sigs (EConst _) = sigs
+exprVarSigs' sigs (EVar (UniVar uni (Var uniq name)))
+    | tracked   = sigs
+    | otherwise = ScopedVarSigs (insertUnique uniq sig free) bound
+    where
+        ScopedVarSigs free bound = sigs
         sig = VarSig name uni
-        ScopedVarSigs free bound = goExpr sigs def
-    goStmt sigs (EAssert expr) = goExpr sigs expr
+        tracked = isTracked uniq sig bound || isTracked uniq sig free
+exprVarSigs' sigs (EAppUnOp _ x) = exprVarSigs' sigs x
+exprVarSigs' sigs (EAppBinOp _ x y) = exprVarSigs' (exprVarSigs' sigs x) y
+exprVarSigs' sigs (EIf b x y) = exprVarSigs' (exprVarSigs' (exprVarSigs' sigs b) x) y
 
-    goExpr :: ScopedVarSigs f -> Expr f a -> ScopedVarSigs f
-    goExpr sigs (EConst _) = sigs
-    goExpr sigs (EVar (UniVar uni (Var uniq name)))
-        | tracked   = sigs
-        | otherwise = ScopedVarSigs (insertUnique uniq sig free) bound
-        where
-            ScopedVarSigs free bound = sigs
-            sig = VarSig name uni
-            tracked = isTracked uniq sig bound || isTracked uniq sig free
-    goExpr sigs (EAppUnOp _ x) = goExpr sigs x
-    goExpr sigs (EAppBinOp _ x y) = goExpr (goExpr sigs x) y
-    goExpr sigs (EIf b x y) = goExpr (goExpr (goExpr sigs b) x) y
+stmtVarSigs :: Statement f -> ScopedVarSigs f
+stmtVarSigs = stmtVarSigs' $ ScopedVarSigs mempty mempty
 
-stmtsFreeVarSigs :: [Statement f] -> Env (VarSig f)
-stmtsFreeVarSigs = foldMap stmtFreeVarSigs
+exprVarSigs :: Expr f a -> ScopedVarSigs f
+exprVarSigs = exprVarSigs' $ ScopedVarSigs mempty mempty
 
 stmtFreeVarSigs :: Statement f -> Env (VarSig f)
 stmtFreeVarSigs = _scopedVarSigsFree . stmtVarSigs
 
-supplyFromAtLeastFree :: MonadSupply m => Statement f -> m ()
-supplyFromAtLeastFree =
+stmtsFreeVarSigs :: [Statement f] -> Env (VarSig f)
+stmtsFreeVarSigs = foldMap stmtFreeVarSigs
+
+exprFreeVarSigs :: Expr f a -> Env (VarSig f)
+exprFreeVarSigs = _scopedVarSigsFree . exprVarSigs
+
+stmtSupplyFromAtLeastFree :: MonadSupply m => Statement f -> m ()
+stmtSupplyFromAtLeastFree =
     supplyFromAtLeast . freeUniqueIntMap . unEnv . _scopedVarSigsFree . stmtVarSigs
+
+exprSupplyFromAtLeastFree :: MonadSupply m => Expr f a -> m ()
+exprSupplyFromAtLeastFree =
+    supplyFromAtLeast . freeUniqueIntMap . unEnv . _scopedVarSigsFree . exprVarSigs

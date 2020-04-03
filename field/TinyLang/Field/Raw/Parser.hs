@@ -170,6 +170,7 @@ See also https://markkarpov.com/megaparsec/megaparsec.html
 
 module TinyLang.Field.Raw.Parser
     ( pTop
+    , pTopExpr
     ) where
 
 import           TinyLang.Prelude               hiding (many, option, try)
@@ -375,3 +376,6 @@ pStatements =
 
 pTop :: TextField f => ParserT m (RawStatements f)
 pTop = top pStatements
+
+pTopExpr :: TextField f => ParserT m (RawExpr f)
+pTopExpr = top pExpr
