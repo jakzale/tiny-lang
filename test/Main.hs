@@ -16,5 +16,6 @@ test_all =
         , Field.gen_test_typechecking
         ]
 
+
 main :: IO ()
 main = defaultMain =<< test_all
