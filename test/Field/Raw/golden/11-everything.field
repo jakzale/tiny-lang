@@ -29,4 +29,3 @@ let ?if = if T then T else T;
 let asf = 1 : field;
 let ?as = T : bool;
 let #as = { T } : vector;
-T

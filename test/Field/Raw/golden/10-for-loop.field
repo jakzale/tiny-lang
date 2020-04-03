@@ -9,4 +9,3 @@ for i = 1 to 2 do
         let p = p * l;
     end;      
 end;                    
-p                        

@@ -12,4 +12,8 @@ do assert T; end
 
 
 
-T
+assert T;
+
+
+
+
