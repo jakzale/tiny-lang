@@ -2,6 +2,8 @@ module TinyLang.Field.Printer
     ( PrintStyle (..)
     , exprToString
     , someExprToString
+    , stmtToString
+    , stmtsToString
     ) where
 
 import           TinyLang.Prelude
@@ -61,14 +63,19 @@ toStringUniConst (UniConst Field  i) = showField i
 toStringUniConst (UniConst Vector v) =
     "{" ++ intercalate "," (map toStringBool $ Vector.toList v) ++ "}"
 
-statementToString :: TextField f => PrintStyle -> Statement f -> String
-statementToString s (ELet (UniVar _ var) def) = concat
+stmtToString :: TextField f => PrintStyle -> Statement f -> String
+stmtToString s (ELet (UniVar _ var) def) = concat
     [ "let "
     , toStringVar s var
     , " = "
     , exprToString s def
+    , ";"
     ]
-statementToString s (EAssert expr)            = "assert " ++ exprToString s expr
+stmtToString s (EAssert expr)            = "assert " ++ exprToString s expr ++ ";"
+
+stmtsToString :: TextField f => PrintStyle -> [Statement f] -> String
+stmtsToString ps = unlines . (map (stmtToString ps))
+
 
 -- Main function
 exprToString :: TextField f => PrintStyle -> Expr f a -> String

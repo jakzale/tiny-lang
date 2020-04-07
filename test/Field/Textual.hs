@@ -100,10 +100,11 @@ test_printerParserRoundtrip =
         ]
 
 parsePrint :: String -> String
-parsePrint
-    = either id (forget $ exprToString WithIDs)
-    . runSupplyT
-    . parseExpr @Rational
+parsePrint = undefined where
+  -- bar = either id (stmtsToString WithIDs)
+  foo :: String -> Either String [Statement Rational]
+  foo = parseStmts @Rational
+
 
 parsePrintGolden :: String -> String -> TestTree
 parsePrintGolden name expr =
@@ -128,7 +129,6 @@ test_forLoops = parsePrintGolden "forLoops" $ unlines
     , "        let p = p * l;"
     , "    end;"
     , "end;"
-    , "p"
     ]
 
 test_parsePrintGolden :: TestTree

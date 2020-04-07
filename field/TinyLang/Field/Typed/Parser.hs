@@ -70,7 +70,7 @@ parseScopedStmts str = do
     let indicesFree = IntMap.keysSet . unEnv $ stmtsFreeVarSigs stmtsTypedRen
         isFree var = unUnique (_varUniq var) `IntSet.member` indicesFree
         scopeFree = Map.filter isFree scopeTotal
-    return . Scoped scopeFree $ stmtsTypedRen
+    return $ Scoped scopeFree stmtsTypedRen
 
 parseStmts
     :: forall f m. (MonadError String m, MonadSupply m, TextField f)
