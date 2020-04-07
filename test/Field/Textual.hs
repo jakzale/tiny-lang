@@ -100,10 +100,9 @@ test_printerParserRoundtrip =
         ]
 
 parsePrint :: String -> String
-parsePrint = undefined where
-  -- bar = either id (stmtsToString WithIDs)
-  foo :: String -> Either String [Statement Rational]
-  foo = parseStmts @Rational
+parsePrint = either id (stmtsToString WithIDs)
+             . runSupplyT
+             . parseStmts @Rational
 
 
 parsePrintGolden :: String -> String -> TestTree
