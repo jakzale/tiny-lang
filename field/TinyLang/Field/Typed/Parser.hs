@@ -65,7 +65,7 @@ parseScopedStmts
     => String -> m (Scoped [Statement f])
 parseScopedStmts str = do
     stmtsRaw <- parseString (pTop @f) "" str
-    Scoped scopeTotal stmtsTyped <- typeStatements stmtsRaw
+    Scoped scopeTotal stmtsTyped <- typeProgram stmtsRaw
     stmtsTypedRen <- renameStmts stmtsTyped
     let indicesFree = IntMap.keysSet . unEnv $ stmtsFreeVarSigs stmtsTypedRen
         isFree var = unUnique (_varUniq var) `IntSet.member` indicesFree

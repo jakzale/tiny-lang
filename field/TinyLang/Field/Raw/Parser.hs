@@ -137,7 +137,7 @@ prefix-op ::=
 
 == Statement
 
-Statements are a bit odd at the moment, as they are neither
+Program are a bit odd at the moment, as they are neither
 expressions nor the usual statements.
 
 @
@@ -362,20 +362,20 @@ pStatement =
     , EFor    <$> (keyword "for"    *> pVar)
               <*> (symbol  "="      *> pIntLiteral)
               <*> (keyword "to"     *> pIntLiteral)
-              <*> (keyword "do"     *> pStatements)
+              <*> (keyword "do"     *> pProgram)
               <*   keyword "end"
     ]
 
-pStatements :: TextField f => ParserT m (RawStatements f)
-pStatements =
+pProgram :: TextField f => ParserT m (RawProgram f)
+pProgram =
     choice
     -- This can backtrack for statement starting with a "("
-    [ try (parens pStatements)
-    , Statements <$> many (pStatement <* symbol ";")
+    [ try (parens pProgram)
+    , Program <$> many (pStatement <* symbol ";")
     ]
 
-pTop :: TextField f => ParserT m (RawStatements f)
-pTop = top pStatements
+pTop :: TextField f => ParserT m (RawProgram f)
+pTop = top pProgram
 
 pTopExpr :: TextField f => ParserT m (RawExpr f)
 pTopExpr = top pExpr

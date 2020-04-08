@@ -25,13 +25,13 @@ module TinyLang.Field.Typed.TypeChecker
     , runTypeChecker
     , typeCheck
     , checkType
-    , typeStatements
+    , typeProgram
     , inferExpr
     , checkExpr
     , inferUniVar
     , checkUniVar
     , checkStatement
-    , checkStatements
+    , checkProgram
     )
     where
 
@@ -102,10 +102,10 @@ typeCheck = runTypeChecker . inferExpr
 
 {-|
 -}
-typeStatements
+typeProgram
     :: (MonadError TypeCheckError m, MonadSupply m, TextField f)
-    => R.Statements R.Var f -> m (Scoped [T.Statement f])
-typeStatements = runTypeChecker . checkStatements
+    => R.Program R.Var f -> m (Scoped [T.Statement f])
+typeProgram = runTypeChecker . checkProgram
 
 {-|
 -}
@@ -222,10 +222,10 @@ checkExpr m = do
     let uniMismatch = typeMismatch tM uni mUni
     withGeqUniM uni mUni uniMismatch $ tM
 
-checkStatements
+checkProgram
     :: forall m f. (MonadTypeChecker m, TextField f)
-    => R.Statements R.Var f -> m [T.Statement f]
-checkStatements stmts = foldMapA checkStatement (R.unStatements stmts)
+    => R.Program R.Var f -> m [T.Statement f]
+checkProgram stmts = foldMapA checkStatement (R.unProgram stmts)
 
 {-| Type checking judgement for statements of form
 -}
@@ -239,7 +239,7 @@ checkStatement (R.EAssert m) = do
     pure . T.EAssert <$> checkExpr m
 checkStatement (R.EFor var start end stmts) = do
     tVar <- makeVar $ R.unVar var
-    (unrollLoop tVar start end) . concat <$> mapM checkStatement (R.unStatements stmts)
+    (unrollLoop tVar start end) . concat <$> mapM checkStatement (R.unProgram stmts)
 
 {-| Statically unroll for statement loop
 -}

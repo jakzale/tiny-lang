@@ -7,10 +7,10 @@ module TinyLang.Field.Raw.Core
     , BinOp(..)
     , UnOp(..)
     , Statement(..)
-    , Statements(..)
+    , Program(..)
     , RawExpr
     , RawStatement
-    , RawStatements
+    , RawProgram
     ) where
 
 import           TinyLang.Field.UniConst
@@ -26,17 +26,17 @@ newtype Var = Var { unVar :: Identifier }
     deriving (Eq, Generic)
     deriving (Show) via (Quiet Var)
 
-{-| @Statements v f$, @Statement v f@, and @Expr v f@ are parameterised
+{-| @Program v f$, @Statement v f@, and @Expr v f@ are parameterised
   by the type of variable @v@.
 -}
-newtype Statements v f = Statements { unStatements :: [Statement v f] }
+newtype Program v f = Program { unProgram :: [Statement v f] }
     deriving (Generic)
-    deriving (Show) via (Quiet (Statements v f))
+    deriving (Show) via (Quiet (Program v f))
 
 data Statement v f
     = ELet    v          (Expr v f)
     | EAssert (Expr v f)
-    | EFor    v          Integer    Integer (Statements v f)
+    | EFor    v          Integer    Integer (Program v f)
     deriving (Show)
 
 data Expr v f
@@ -76,5 +76,4 @@ data UnOp
 -}
 type RawExpr       = Expr Var
 type RawStatement  = Statement Var
-type RawStatements = Statements Var
-
+type RawProgram = Program Var

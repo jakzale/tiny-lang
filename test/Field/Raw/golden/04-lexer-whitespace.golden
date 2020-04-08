@@ -1,1 +1,1 @@
-Statements [EAssert (EConst (Some (UniConst Bool True)))]
+Program [EAssert (EConst (Some (UniConst Bool True)))]

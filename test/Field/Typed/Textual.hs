@@ -19,7 +19,7 @@ testDir = "test" </> "Field" </> "Typed" </> "golden"
 typeCheckFilePath :: FilePath -> IO (Either String [Statement Rational])
 typeCheckFilePath filePath = do
     parsed <- parseFilePath filePath
-    pure $ runSupplyT . fmap _scopedValue . typeStatements =<< parsed
+    pure $ runSupplyT . fmap _scopedValue . typeProgram =<< parsed
 
 genTest :: FilePath -> TestTree
 genTest filePath = goldenVsString name golden action
