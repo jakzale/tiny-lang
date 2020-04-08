@@ -362,17 +362,20 @@ pStatement =
     , EFor    <$> (keyword "for"    *> pVar)
               <*> (symbol  "="      *> pIntLiteral)
               <*> (keyword "to"     *> pIntLiteral)
-              <*> (keyword "do"     *> pProgram)
+              <*> (keyword "do"     *> pStatements)
               <*   keyword "end"
     ]
 
-pProgram :: TextField f => ParserT m (RawProgram f)
-pProgram =
+pStatements :: TextField f => ParserT m (RawStatements f)
+pStatements =
     choice
     -- This can backtrack for statement starting with a "("
-    [ try (parens pProgram)
-    , Program <$> many (pStatement <* symbol ";")
+    [ try (parens pStatements)
+    , Statements <$> many (pStatement <* symbol ";")
     ]
+
+pProgram :: TextField f => ParserT m (RawProgram f)
+pProgram = Program <$> pStatements
 
 pTop :: TextField f => ParserT m (RawProgram f)
 pTop = top pProgram

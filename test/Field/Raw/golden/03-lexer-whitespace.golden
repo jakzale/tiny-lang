@@ -1,1 +1,1 @@
-Program [ELet (Var "x") (EConst (Some (1 / 2)))]
+Program (Statements [ELet (Var "x") (EConst (Some (1 / 2)))])

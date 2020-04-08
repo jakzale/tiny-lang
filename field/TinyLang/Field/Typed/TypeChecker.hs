@@ -225,7 +225,7 @@ checkExpr m = do
 checkProgram
     :: forall m f. (MonadTypeChecker m, TextField f)
     => R.Program R.Var f -> m [T.Statement f]
-checkProgram stmts = foldMapA checkStatement (R.unProgram stmts)
+checkProgram = (foldMapA checkStatement) . R.unStatements .  R.unProgram
 
 {-| Type checking judgement for statements of form
 -}
@@ -239,7 +239,7 @@ checkStatement (R.EAssert m) = do
     pure . T.EAssert <$> checkExpr m
 checkStatement (R.EFor var start end stmts) = do
     tVar <- makeVar $ R.unVar var
-    (unrollLoop tVar start end) . concat <$> mapM checkStatement (R.unProgram stmts)
+    (unrollLoop tVar start end) . concat <$> mapM checkStatement (R.unStatements stmts)
 
 {-| Statically unroll for statement loop
 -}
