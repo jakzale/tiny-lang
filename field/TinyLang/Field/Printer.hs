@@ -72,6 +72,17 @@ stmtToString s (ELet (UniVar _ var) def) = concat
     , ";"
     ]
 stmtToString s (EAssert expr)            = "assert " ++ exprToString s expr ++ ";"
+stmtToString s (EFor (UniVar _ var) start end stmts) = concat
+    [ "for "
+    , toStringVar s var
+    , " = "
+    , show start
+    , " to "
+    , show end
+    , " do\n"
+    , unlines $ map (stmtToString s) $ unStatements stmts
+    , "end\n"
+    ]
 
 stmtsToString :: TextField f => PrintStyle -> [Statement f] -> String
 stmtsToString ps = unlines . (map (stmtToString ps))

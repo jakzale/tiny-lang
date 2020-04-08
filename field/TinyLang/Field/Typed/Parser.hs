@@ -10,8 +10,8 @@ For the new API please refer to "TinyLang.Field.Raw.Parser".
 module TinyLang.Field.Typed.Parser
     ( parseScopedExpr
     , parseExpr
-    , parseScopedStmts
-    , parseStmts
+    , parseScopedProgram
+    , parseProgram
     ) where
 
 import           TinyLang.Prelude                 hiding (many, option, some,
@@ -60,19 +60,19 @@ parseExpr
 parseExpr = fmap _scopedValue . parseScopedExpr
 
 
-parseScopedStmts
+parseScopedProgram
     :: forall f m. (MonadError String m, MonadSupply m, TextField f)
-    => String -> m (Scoped [Statement f])
-parseScopedStmts str = do
-    stmtsRaw <- parseString (pTop @f) "" str
-    Scoped scopeTotal stmtsTyped <- typeProgram stmtsRaw
-    stmtsTypedRen <- renameStmts stmtsTyped
-    let indicesFree = IntMap.keysSet . unEnv $ stmtsFreeVarSigs stmtsTypedRen
+    => String -> m (Scoped (Program f))
+parseScopedProgram str = do
+    progRaw <- parseString (pTop @f) "" str
+    Scoped scopeTotal progTyped <- typeProgram progRaw
+    progTypedRen <- renameProgram progTyped
+    let indicesFree = IntMap.keysSet . unEnv $ progFreeVarSigs progTypedRen
         isFree var = unUnique (_varUniq var) `IntSet.member` indicesFree
         scopeFree = Map.filter isFree scopeTotal
-    return $ Scoped scopeFree stmtsTypedRen
+    return $ Scoped scopeFree progTypedRen
 
-parseStmts
+parseProgram
     :: forall f m. (MonadError String m, MonadSupply m, TextField f)
-    => String -> m [Statement f]
-parseStmts = fmap _scopedValue . parseScopedStmts
+    => String -> m (Program f)
+parseProgram = fmap _scopedValue . parseScopedProgram

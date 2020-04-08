@@ -16,6 +16,8 @@ module TinyLang.Field.Typed.Core
     , UnOp (..)
     , BinOp (..)
     , Statement (..)
+    , Statements (..)
+    , Program (..)
     , Expr (..)
     , withUnOpUnis
     , withBinOpUnis
@@ -26,10 +28,12 @@ module TinyLang.Field.Typed.Core
     , stmtVarSigs
     , stmtFreeVarSigs
     , stmtsFreeVarSigs
+    , progFreeVarSigs
     , exprVarSigs
     , exprFreeVarSigs
     , exprSupplyFromAtLeastFree
     , stmtSupplyFromAtLeastFree
+    , stmtsSupplyFromAtLeastFree
     , uniOfExpr
     ) where
 
@@ -42,6 +46,8 @@ import           TinyLang.Field.Existential
 import           TinyLang.Field.UniConst
 import           TinyLang.Var               as Var
 
+import           GHC.Generics ()
+import           Quiet
 
 -- Needed for the sake of symmetry with 'UniConst'.
 data UniVar f a = UniVar
@@ -80,12 +86,21 @@ data BinOp f a b c where
     Div :: BinOp f (AField f) (AField f) (AField f)
     BAt :: BinOp f (AField f) (Vector Bool) Bool
 
+newtype Program f = Program { unProgram :: Statements f }
+    deriving (Eq,Generic)
+    deriving (Show) via (Quiet (Program f))
+
+newtype Statements f = Statements { unStatements :: [Statement f] }
+    deriving (Eq,Generic)
+    deriving (Show) via (Quiet (Statements f))
+
 data Statement f where
     ELet    :: UniVar f a -> Expr f a -> Statement f
     -- | Things that get compiled to constraints down the pipeline.
     -- The evaluation semantics is the following: each assertion becomes a check at runtime
     -- and the if the check fails, we have evaluation failure.
     EAssert :: Expr f Bool -> Statement f
+    EFor    :: UniVar f (AField f) -> Integer -> Integer -> Statements f -> Statement f
 
 data Expr f a where
     EConst     :: UniConst f a -> Expr f a
@@ -178,10 +193,14 @@ instance Eq f => Eq (UniVar f a) where
 instance Eq f => Eq (Statement f) where
     ELet (UniVar u1 v1) d1 == ELet (UniVar u2 v2) d2 =
         withGeqUni u1 u2 False $ v1 == v2 && d1 == d2
-    EAssert as1            == EAssert as2            = as1 == as2
+    EAssert as1 == EAssert as2 =
+        as1 == as2
+    EFor (UniVar u1 v1) i1 j1 stmts1 == EFor (UniVar u2 v2) i2 j2 stmts2 =
+        withGeqUni u1 u2 False $ v1 == v2 && i1 == i2 && j1 == j2 && stmts1 == stmts2
 
     ELet    {} == _ = False
     EAssert {} == _ = False
+    EFor    {} == _ = False
 
 instance Eq f => Eq (Expr f a) where
     EConst uval1       == EConst uval2         = uval1 == uval2
@@ -234,6 +253,10 @@ stmtVarSigs' sigs (ELet uniVar def) = ScopedVarSigs free $ insertUnique uniq sig
     sig = VarSig name uni
     ScopedVarSigs free bound = exprVarSigs' sigs def
 stmtVarSigs' sigs (EAssert expr) = exprVarSigs' sigs expr
+stmtVarSigs' sigs (EFor uniVar _ _ stmts) = ScopedVarSigs free $ insertUnique uniq sig bound where
+    UniVar uni (Var uniq name) = uniVar
+    sig = VarSig name uni
+    ScopedVarSigs free bound = foldr (flip stmtVarSigs') sigs (unStatements stmts)
 
 exprVarSigs' :: ScopedVarSigs f -> Expr f a -> ScopedVarSigs f
 exprVarSigs' sigs (EConst _) = sigs
@@ -257,8 +280,11 @@ exprVarSigs = exprVarSigs' $ ScopedVarSigs mempty mempty
 stmtFreeVarSigs :: Statement f -> Env (VarSig f)
 stmtFreeVarSigs = _scopedVarSigsFree . stmtVarSigs
 
-stmtsFreeVarSigs :: [Statement f] -> Env (VarSig f)
-stmtsFreeVarSigs = foldMap stmtFreeVarSigs
+stmtsFreeVarSigs :: Statements f -> Env (VarSig f)
+stmtsFreeVarSigs = foldMap stmtFreeVarSigs . unStatements
+
+progFreeVarSigs :: Program f -> Env (VarSig f)
+progFreeVarSigs = stmtsFreeVarSigs . unProgram
 
 exprFreeVarSigs :: Expr f a -> Env (VarSig f)
 exprFreeVarSigs = _scopedVarSigsFree . exprVarSigs
@@ -266,6 +292,9 @@ exprFreeVarSigs = _scopedVarSigsFree . exprVarSigs
 stmtSupplyFromAtLeastFree :: MonadSupply m => Statement f -> m ()
 stmtSupplyFromAtLeastFree =
     supplyFromAtLeast . freeUniqueIntMap . unEnv . _scopedVarSigsFree . stmtVarSigs
+
+stmtsSupplyFromAtLeastFree :: MonadSupply m => Statements f -> m ()
+stmtsSupplyFromAtLeastFree = mapM_ stmtSupplyFromAtLeastFree . unStatements
 
 exprSupplyFromAtLeastFree :: MonadSupply m => Expr f a -> m ()
 exprSupplyFromAtLeastFree =

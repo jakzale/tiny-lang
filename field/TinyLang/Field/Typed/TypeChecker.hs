@@ -38,8 +38,6 @@ module TinyLang.Field.Typed.TypeChecker
 import           TinyLang.Prelude           hiding (TypeError)
 
 import           Data.Field
-import           TinyLang.Environment
-import           TinyLang.Field.Evaluator
 import           TinyLang.Field.Existential
 import qualified TinyLang.Field.Raw.Core    as R
 import qualified TinyLang.Field.Typed.Core  as T
@@ -104,7 +102,7 @@ typeCheck = runTypeChecker . inferExpr
 -}
 typeProgram
     :: (MonadError TypeCheckError m, MonadSupply m, TextField f)
-    => R.Program R.Var f -> m (Scoped [T.Statement f])
+    => R.Program R.Var f -> m (Scoped (T.Program f))
 typeProgram = runTypeChecker . checkProgram
 
 {-|
@@ -224,33 +222,23 @@ checkExpr m = do
 
 checkProgram
     :: forall m f. (MonadTypeChecker m, TextField f)
-    => R.Program R.Var f -> m [T.Statement f]
-checkProgram = (foldMapA checkStatement) . R.unStatements .  R.unProgram
+    => R.Program R.Var f -> m (T.Program f)
+checkProgram =
+    liftA T.Program . liftA T.Statements . mapM checkStatement . R.unStatements .  R.unProgram
 
 {-| Type checking judgement for statements of form
 -}
 checkStatement
     :: forall m f. (MonadTypeChecker m, TextField f)
-    => R.Statement R.Var f -> m [T.Statement f]
+    => R.Statement R.Var f -> m (T.Statement f)
 checkStatement (R.ELet var m) = do
     Some (uniVar@(T.UniVar uni _)) <- inferUniVar var
-    T.withKnownUni uni $ pure . (T.ELet uniVar) <$> checkExpr m
+    T.withKnownUni uni $ (T.ELet uniVar) <$> checkExpr m
 checkStatement (R.EAssert m) = do
-    pure . T.EAssert <$> checkExpr m
+    T.EAssert <$> checkExpr m
 checkStatement (R.EFor var start end stmts) = do
     tVar <- makeVar $ R.unVar var
-    (unrollLoop tVar start end) . concat <$> mapM checkStatement (R.unStatements stmts)
-
-{-| Statically unroll for statement loop
--}
-unrollLoop
-    :: forall f. (TextField f)
-    => T.Var -> Integer -> Integer -> [T.Statement f] -> [T.Statement f]
-unrollLoop var lower bound stats = do
-    i <- [lower .. bound]
-    let env = insertVar var (Some $ fromInteger i) mempty
-        report err = error $ "Panic: " ++ show err
-    map (either report id . instStatement env) stats
+    T.EFor (T.UniVar Field tVar) start end . T.Statements <$> mapM checkStatement (R.unStatements stmts)
 
 {-| Error message for a failed type equality
 -}
