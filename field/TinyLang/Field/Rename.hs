@@ -7,6 +7,8 @@ import           TinyLang.Prelude
 
 import           TinyLang.Field.Typed.Core
 
+import           Control.Monad.Cont
+
 renameExpr :: MonadSupply m => Expr f a -> m (Expr f a)
 renameExpr expr = do
     exprSupplyFromAtLeastFree expr
@@ -15,7 +17,7 @@ renameExpr expr = do
 renameProgram :: MonadSupply m => Program f -> m (Program f)
 renameProgram (Program stmts) = do
     stmtsSupplyFromAtLeastFree stmts
-    Program <$> (runRenameM $ renameStatementsM stmts)
+    Program <$> (runRenameM $ withRenamedStatementsM stmts pure)
 
 type RenameM = ReaderT (Env Unique) Supply
 
@@ -23,9 +25,9 @@ runRenameM :: MonadSupply m => RenameM a -> m a
 runRenameM a = liftSupply $ runReaderT a mempty
 
 withFreshenedVar :: Var -> (Var -> RenameM c) -> RenameM c
-withFreshenedVar var cont = do
+withFreshenedVar var kont = do
     uniqNew <- freshUnique
-    local (insertVar var uniqNew) . cont $ setUnique uniqNew var
+    local (insertVar var uniqNew) . kont $ setUnique uniqNew var
 
 renameVarM :: Var -> RenameM Var
 renameVarM var = do
@@ -34,17 +36,19 @@ renameVarM var = do
         Nothing   -> var
         Just uniq -> setUnique uniq var
 
-renameStatementsM :: Statements f -> RenameM (Statements f)
-renameStatementsM = liftA Statements . mapM renameStatementM . unStatements
-
-renameStatementM :: Statement f -> RenameM (Statement f)
-renameStatementM (ELet (UniVar uni var) def) = do
+withRenamedStatementM :: Statement f -> (Statement f -> RenameM c) -> RenameM c
+withRenamedStatementM (ELet (UniVar uni var) def) kont = do
     defRen <- renameExprM def
-    withFreshenedVar var $ \varFr -> pure $ ELet (UniVar uni varFr) defRen
-renameStatementM (EAssert expr) = EAssert <$> renameExprM expr
-renameStatementM (EFor (UniVar uni var) i j stmts) = do
-    stmtsRen <- renameStatementsM stmts
-    withFreshenedVar var $ \varFr -> pure $ EFor (UniVar uni varFr) i j stmtsRen
+    withFreshenedVar var $ \varFr -> kont $ ELet (UniVar uni varFr) defRen
+withRenamedStatementM (EAssert expr) kont = renameExprM expr >>= kont . EAssert
+withRenamedStatementM (EFor (UniVar uni var) start end stmts) kont = do
+    withFreshenedVar var $ \varFr ->
+        withRenamedStatementsM stmts $ \stmtsRen ->
+            kont $ EFor (UniVar uni varFr) start end stmtsRen
+
+withRenamedStatementsM :: Statements f -> (Statements f -> RenameM c) -> RenameM c
+withRenamedStatementsM (Statements stmts) kont =
+    runContT (traverse (ContT . withRenamedStatementM) stmts) $ kont . Statements
 
 renameExprM :: Expr f a -> RenameM (Expr f a)
 renameExprM (EConst uniConst)            = pure $ EConst uniConst
