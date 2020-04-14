@@ -206,7 +206,7 @@ instance Eq f => Eq (Statement f) where
     EAssert as1 == EAssert as2 =
         as1 == as2
     EFor (UniVar u1 v1) i1 j1 stmts1 == EFor (UniVar u2 v2) i2 j2 stmts2 =
-        withGeqUni u1 u2 False $ v1 == v2 && i1 == i2 && j1 == j2 && stmts1 == stmts2
+        u1 == u2 && v1 == v2 && i1 == i2 && j1 == j2 && stmts1 == stmts2
 
     ELet    {} == _ = False
     EAssert {} == _ = False
