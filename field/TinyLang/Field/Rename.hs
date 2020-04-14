@@ -46,6 +46,8 @@ withRenamedStatementM (EAssert expr) kont = renameExprM expr >>= kont . EAssert
 withRenamedStatementM (EFor (UniVar uni var) start end stmts) kont = do
     withFreshenedVar var $ \varFr ->
         withRenamedStatementsM stmts $ \stmtsRen ->
+        -- NOTE: The language is imperative and we do not have lexical scoping,
+        -- therefore kont is called inside @withRenamedStatementsM@.
             kont $ EFor (UniVar uni varFr) start end stmtsRen
 
 withRenamedStatementsM :: Statements f -> (Statements f -> RenameM c) -> RenameM c
