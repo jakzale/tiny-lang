@@ -28,11 +28,10 @@ import qualified Data.IntMap.Strict               as IntMap
 import qualified Data.IntSet                      as IntSet
 import qualified Data.Map.Strict                  as Map
 
--- TODO: use a proper @newtype@.
-instance TextField f => IsString (Scoped (Some (Expr f))) where
-    fromString = either error (fmap $ forget Some) . runSupplyT . parseScopedExpr
+instance TextField f => IsString (Scoped (Program f)) where
+    fromString = either error id . runSupplyT . parseScopedProgram
 
-instance TextField f => IsString (Some (Expr f)) where
+instance TextField f => IsString (Program f) where
     fromString = _scopedValue <$> fromString
 
 -- | Parse a @String@ and return @Either@ an error message or an @Expr@ of some type.

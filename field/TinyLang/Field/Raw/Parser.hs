@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 {-|
 = Raw Parser
 
@@ -188,6 +189,12 @@ import           Text.Megaparsec
 import           Text.Megaparsec.Char
 
 type ParserT = ParsecT Void String
+
+{-| == IsString instances
+-}
+
+instance TextField f => IsString (RawProgram f) where
+    fromString = either error id . parseString (pTop @f) ""
 
 {-| == Lexer
 -}
@@ -382,3 +389,4 @@ pTop = top pProgram
 
 pTopExpr :: TextField f => ParserT m (RawExpr f)
 pTopExpr = top pExpr
+
