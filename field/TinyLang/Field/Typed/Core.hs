@@ -16,8 +16,12 @@ module TinyLang.Field.Typed.Core
     , UnOp (..)
     , BinOp (..)
     , Statement (..)
-    , Statements (..)
-    , Program (..)
+    , Statements
+    , mkStatements
+    , unStatements
+    , Program
+    , mkProgram
+    , unProgram
     , Expr (..)
     , withUnOpUnis
     , withBinOpUnis
@@ -40,14 +44,12 @@ module TinyLang.Field.Typed.Core
 import           Prelude                    hiding (div)
 import           TinyLang.Prelude
 
+import qualified TinyLang.Field.Core        as C
 import           Data.Field                 as Field
 import           TinyLang.Environment       as Env
 import           TinyLang.Field.Existential
 import           TinyLang.Field.UniConst
 import           TinyLang.Var               as Var
-
-import           GHC.Generics ()
-import           Quiet
 
 -- Needed for the sake of symmetry with 'UniConst'.
 data UniVar f a = UniVar
@@ -86,13 +88,21 @@ data BinOp f a b c where
     Div :: BinOp f (AField f) (AField f) (AField f)
     BAt :: BinOp f (AField f) (Vector Bool) Bool
 
-newtype Program f = Program { unProgram :: Statements f }
-    deriving (Eq,Generic)
-    deriving (Show) via (Quiet (Program f))
 
-newtype Statements f = Statements { unStatements :: [Statement f] }
-    deriving (Eq,Generic)
-    deriving (Show) via (Quiet (Statements f))
+type Program = C.Program Statement
+type Statements = C.Statements Statement
+
+mkProgram :: Statements f -> Program f
+mkProgram = C.Program
+
+unProgram :: Program f -> Statements f
+unProgram = C.unProgram
+
+mkStatements :: [Statement f] -> Statements f
+mkStatements = C.Statements
+
+unStatements :: Statements f -> [Statement f]
+unStatements = C.unStatements
 
 data Statement f where
     ELet    :: UniVar f a -> Expr f a -> Statement f
@@ -256,7 +266,7 @@ stmtVarSigs' sigs (EAssert expr) = exprVarSigs' sigs expr
 stmtVarSigs' sigs (EFor uniVar _ _ stmts) = ScopedVarSigs free $ insertUnique uniq sig bound where
     UniVar uni (Var uniq name) = uniVar
     sig = VarSig name uni
-    ScopedVarSigs free bound = foldr (flip stmtVarSigs') sigs (unStatements stmts)
+    ScopedVarSigs free bound = foldr (flip stmtVarSigs') sigs (C.unStatements stmts)
 
 exprVarSigs' :: ScopedVarSigs f -> Expr f a -> ScopedVarSigs f
 exprVarSigs' sigs (EConst _) = sigs
@@ -281,10 +291,10 @@ stmtFreeVarSigs :: Statement f -> Env (VarSig f)
 stmtFreeVarSigs = _scopedVarSigsFree . stmtVarSigs
 
 stmtsFreeVarSigs :: Statements f -> Env (VarSig f)
-stmtsFreeVarSigs = foldMap stmtFreeVarSigs . unStatements
+stmtsFreeVarSigs = foldMap stmtFreeVarSigs . C.unStatements
 
 progFreeVarSigs :: Program f -> Env (VarSig f)
-progFreeVarSigs = stmtsFreeVarSigs . unProgram
+progFreeVarSigs = stmtsFreeVarSigs . C.unProgram
 
 exprFreeVarSigs :: Expr f a -> Env (VarSig f)
 exprFreeVarSigs = _scopedVarSigsFree . exprVarSigs
@@ -294,7 +304,7 @@ stmtSupplyFromAtLeastFree =
     supplyFromAtLeast . freeUniqueIntMap . unEnv . _scopedVarSigsFree . stmtVarSigs
 
 stmtsSupplyFromAtLeastFree :: MonadSupply m => Statements f -> m ()
-stmtsSupplyFromAtLeastFree = mapM_ stmtSupplyFromAtLeastFree . unStatements
+stmtsSupplyFromAtLeastFree = mapM_ stmtSupplyFromAtLeastFree . C.unStatements
 
 exprSupplyFromAtLeastFree :: MonadSupply m => Expr f a -> m ()
 exprSupplyFromAtLeastFree =

@@ -23,6 +23,7 @@ library
         TinyLang.ParseUtils
         TinyLang.Prelude
         TinyLang.Var
+        TinyLang.Field.Core
         TinyLang.Field.Evaluator
         TinyLang.Field.Existential
         TinyLang.Field.Generator

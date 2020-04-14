@@ -15,9 +15,10 @@ renameExpr expr = do
     runRenameM $ renameExprM expr
 
 renameProgram :: MonadSupply m => Program f -> m (Program f)
-renameProgram (Program stmts) = do
+renameProgram prog = do
+    let stmts = unProgram prog
     stmtsSupplyFromAtLeastFree stmts
-    Program <$> (runRenameM $ withRenamedStatementsM stmts pure)
+    mkProgram <$> (runRenameM $ withRenamedStatementsM stmts pure)
 
 type RenameM = ReaderT (Env Unique) Supply
 
@@ -47,8 +48,8 @@ withRenamedStatementM (EFor (UniVar uni var) start end stmts) kont = do
             kont $ EFor (UniVar uni varFr) start end stmtsRen
 
 withRenamedStatementsM :: Statements f -> (Statements f -> RenameM c) -> RenameM c
-withRenamedStatementsM (Statements stmts) kont =
-    runContT (traverse (ContT . withRenamedStatementM) stmts) $ kont . Statements
+withRenamedStatementsM stmts kont =
+    runContT (traverse (ContT . withRenamedStatementM) (unStatements stmts)) $ kont . mkStatements
 
 renameExprM :: Expr f a -> RenameM (Expr f a)
 renameExprM (EConst uniConst)            = pure $ EConst uniConst

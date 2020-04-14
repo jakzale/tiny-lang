@@ -31,7 +31,7 @@ import qualified Data.IntMap.Strict               as IntMap
 import qualified Data.Vector                      as Vector
 import           QuickCheck.GenT
 import           Test.QuickCheck                  hiding (elements, frequency,
-                                                   oneof, sized)
+                                                   listOf, oneof, resize, sized)
 import           Test.QuickCheck.Instances.Vector ()
 
 -- Our generators all run in such an @m@ that @MonadGen m@ and
@@ -236,12 +236,33 @@ groundArbitraryFreqs vars =
     , (2, EVar   <$> chooseUniVar vars)
     ]
 
+boundedArbitraryStmts
+    :: forall m f. (Field f, Arbitrary f, MonadGen m, MonadSupply m)
+    => Vars f -> Int -> m (Statements f)
+boundedArbitraryStmts vars size = mkStatements <$> stmts where
+    stmts = resize size $ listOf $ boundedArbitraryStmt vars size
+
 boundedArbitraryStmt
-    :: (Field f, Arbitrary f, MonadGen m, MonadSupply m)
+    :: forall m f. (Field f, Arbitrary f, MonadGen m, MonadSupply m)
     => Vars f -> Int -> m (Statement f)
 boundedArbitraryStmt vars size
     | size <= 1 = EAssert <$> boundedArbitraryExpr vars size
-    | otherwise = undefined
+    | otherwise = frequency stmtGens where
+          stmtGens = [ (1, withOneofUnis $ \(_ :: Uni f a') -> do
+                               uniVar <- genFreshUniVar @f @a'
+                               let vars' = Some uniVar : vars
+                                   size' = size - 1
+                               ELet uniVar <$> boundedArbitraryExpr vars' size')
+                     , (1, EAssert <$> boundedArbitraryExpr vars size)
+                     , (1, do
+                               uniVar <- genFreshUniVar @f @(AField f)
+                               let vars' = Some uniVar : vars
+                                   size' = size - 1
+                                   start = liftGen arbitrary
+                                   end   = liftGen arbitrary
+
+                               EFor uniVar <$> start <*> end <*> boundedArbitraryStmts vars' size')
+                     ]
 
 -- | Generate an expression of a particular type from a collection of variables
 -- with the number of nodes (approximately) bounded by 'size'.

@@ -227,14 +227,15 @@ denoteExpr env = fmap denoteUniConst . evalExprUni env
 normStatements
     :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
     => Env (SomeUniConst f) -> Statements f -> m (Statements f)
-normStatements _   (Statements []) = pure $ Statements []
-normStatements env (Statements (stmt : rest)) = do
-    stmtN <- normStatement env stmt
-    case stmtN of
-        ELet (UniVar _ var) (EConst uniConst) ->
-            normStatements (insertVar var (Some uniConst) env) . Statements $ rest
-        _  ->
-            Statements . (stmtN:) . unStatements <$> normStatements env (Statements rest)
+normStatements env0 = fmap mkStatements . go env0 . unStatements where
+    go _   []            = pure []
+    go env (stmt : rest) = do
+        stmtN <- normStatement env stmt
+        case stmtN of
+            ELet (UniVar _ var) (EConst uniConst) ->
+                go (insertVar var (Some uniConst) env)  rest
+            _  ->
+                (:) stmtN <$> go env rest
 
 normStatement
     :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
@@ -284,7 +285,7 @@ instStatement env (EFor uniVar start end stmts) = EFor uniVar start end <$> inst
 
 instStatements :: MonadEvalError f m
     => Env (SomeUniConst f) -> Statements f -> m (Statements f)
-instStatements env stmts = Statements <$> mapM (instStatement env) (unStatements stmts)
+instStatements env = fmap mkStatements . mapM (instStatement env) . unStatements
 
 -- | Instantiate some of the variables of an expression with values.
 instExpr :: MonadEvalError f m => Env (SomeUniConst f) -> Expr f a -> m (Expr f a)

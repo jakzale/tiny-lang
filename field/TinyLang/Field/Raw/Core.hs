@@ -7,8 +7,12 @@ module TinyLang.Field.Raw.Core
     , BinOp(..)
     , UnOp(..)
     , Statement(..)
-    , Program(..)
-    , Statements(..)
+    , Program
+    , Statements
+    , mkProgram
+    , unProgram
+    , mkStatements
+    , unStatements
     , RawProgram
     , RawStatements
     , RawStatement
@@ -16,6 +20,7 @@ module TinyLang.Field.Raw.Core
     ) where
 
 import           TinyLang.Field.UniConst
+import qualified TinyLang.Field.Core as C
 
 import           GHC.Generics
 import           Quiet
@@ -45,18 +50,20 @@ statement level; the operations acting on statement level are not necessarily
 mappable over a list of statements.
 -}
 
-{-| @Program v f$, @Statement v f@, and @Expr v f@ are parameterised
-  by the type of variable @v@.
--}
-newtype Program v f = Program { unProgram :: Statements v f }
-    deriving (Generic)
-    deriving (Show) via (Quiet (Program v f))
+type Program v = C.Program (Statement v)
+type Statements v = C.Statements (Statement v)
 
-{-| @Statements@ is our topLevel form for parsing programs.
--}
-newtype Statements v f = Statements { unStatements :: [Statement v f] }
-  deriving (Generic)
-  deriving (Show) via (Quiet (Statements v f))
+mkProgram :: Statements v f -> Program v f
+mkProgram = C.Program
+
+unProgram :: Program v f -> Statements v f
+unProgram = C.unProgram
+
+mkStatements :: [Statement v f] -> Statements v f
+mkStatements = C.Statements
+
+unStatements :: Statements v f -> [Statement v f]
+unStatements = C.unStatements
 
 data Statement v f
     = ELet    v          (Expr v f)

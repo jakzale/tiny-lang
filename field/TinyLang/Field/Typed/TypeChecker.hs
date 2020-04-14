@@ -224,7 +224,7 @@ checkProgram
     :: forall m f. (MonadTypeChecker m, TextField f)
     => R.Program R.Var f -> m (T.Program f)
 checkProgram =
-    fmap (T.Program . T.Statements) . mapM checkStatement . R.unStatements .  R.unProgram
+    fmap (T.mkProgram . T.mkStatements) . mapM checkStatement . R.unStatements .  R.unProgram
 
 {-| Type checking judgement for statements of form
 -}
@@ -238,7 +238,7 @@ checkStatement (R.EAssert m) = do
     T.EAssert <$> checkExpr m
 checkStatement (R.EFor var start end stmts) = do
     tVar <- makeVar $ R.unVar var
-    T.EFor (T.UniVar Field tVar) start end . T.Statements <$> mapM checkStatement (R.unStatements stmts)
+    T.EFor (T.UniVar Field tVar) start end . T.mkStatements <$> mapM checkStatement (R.unStatements stmts)
 
 {-| Error message for a failed type equality
 -}
