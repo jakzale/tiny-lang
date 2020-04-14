@@ -40,6 +40,7 @@ renameVarM var = do
 withRenamedStatementM :: Statement f -> (Statement f -> RenameM c) -> RenameM c
 withRenamedStatementM (ELet (UniVar uni var) def) kont = do
     defRen <- renameExprM def
+    -- ^ var is not in scope in def
     withFreshenedVar var $ \varFr -> kont $ ELet (UniVar uni varFr) defRen
 withRenamedStatementM (EAssert expr) kont = renameExprM expr >>= kont . EAssert
 withRenamedStatementM (EFor (UniVar uni var) start end stmts) kont = do
