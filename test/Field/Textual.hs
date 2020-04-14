@@ -26,12 +26,25 @@ import           Test.Tasty.QuickCheck
 -- generators. I.e. we should implement alpha-equality (but it is kind of weird to change
 -- uniques of free variables and so we probably want a newtype wrapper around @Expr@ with
 -- that very specific @Eq@ instance).
+
+
+-- TODO: I can probably remove a lot of code now that @Statements@ and @Program@
+-- are functors.
+forgetProgramIDs :: Program f -> Program f
+forgetProgramIDs = fmap forgetStatementIDs
+
+forgetStatementsIDs :: Statements f -> Statements f
+forgetStatementsIDs = fmap forgetStatementIDs
+
 forgetID :: UniVar f a -> UniVar f a
 forgetID (UniVar u v) = UniVar u $ Var (Unique 0) (_varName v)
 
 forgetStatementIDs :: Statement f -> Statement f
 forgetStatementIDs (ELet uvar d)  = ELet (forgetID uvar) (forgetIDs d)
 forgetStatementIDs (EAssert expr) = EAssert $ forgetIDs expr
+forgetStatementIDs (EFor uvar start end stmts) =
+    EFor (forgetID uvar) start end stmts' where
+    stmts' = forgetStatementIDs <$> stmts
 
 forgetIDs :: Expr f a -> Expr f a
 forgetIDs (EConst uval)        = EConst uval
