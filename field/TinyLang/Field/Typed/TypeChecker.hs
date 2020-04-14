@@ -224,7 +224,7 @@ checkProgram
     :: forall m f. (MonadTypeChecker m, TextField f)
     => R.Program R.Var f -> m (T.Program f)
 checkProgram =
-    liftA T.Program . liftA T.Statements . mapM checkStatement . R.unStatements .  R.unProgram
+    fmap (T.Program . T.Statements) . mapM checkStatement . R.unStatements .  R.unProgram
 
 {-| Type checking judgement for statements of form
 -}
