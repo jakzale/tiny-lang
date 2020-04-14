@@ -52,7 +52,9 @@ withRenamedStatementM (EFor (UniVar uni var) start end stmts) kont = do
 
 withRenamedStatementsM :: Statements f -> (Statements f -> RenameM c) -> RenameM c
 withRenamedStatementsM stmts kont =
-    runContT (traverse (ContT . withRenamedStatementM) (unStatements stmts)) $ kont . mkStatements
+    runContT (traverse (ContT . withRenamedStatementM) stmts') $ kont . mkStatements where
+    stmts' = unStatements stmts
+
 
 renameExprM :: Expr f a -> RenameM (Expr f a)
 renameExprM (EConst uniConst)            = pure $ EConst uniConst
