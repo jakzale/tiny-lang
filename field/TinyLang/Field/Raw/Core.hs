@@ -50,8 +50,8 @@ statement level; the operations acting on statement level are not necessarily
 mappable over a list of statements.
 -}
 
-type Program v = C.Program (Statement v)
-type Statements v = C.Statements (Statement v)
+type Program v f    = C.Program    (Statement v f)
+type Statements v f = C.Statements (Statement v f)
 
 mkProgram :: Statements v f -> Program v f
 mkProgram = C.Program
@@ -106,7 +106,7 @@ data UnOp
 
 {-| = Utility Type Aliases
 -}
-type RawProgram    = Program Var
-type RawStatements = Statements Var
-type RawStatement  = Statement Var
-type RawExpr       = Expr Var
+type RawProgram    f = Program Var f
+type RawStatements f = Statements Var f
+type RawStatement  f = Statement Var f
+type RawExpr       f = Expr Var f

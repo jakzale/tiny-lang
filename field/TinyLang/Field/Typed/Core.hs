@@ -89,8 +89,8 @@ data BinOp f a b c where
     BAt :: BinOp f (AField f) (Vector Bool) Bool
 
 
-type Program = C.Program Statement
-type Statements = C.Statements Statement
+type Program    f = C.Program    (Statement f)
+type Statements f = C.Statements (Statement f)
 
 mkProgram :: Statements f -> Program f
 mkProgram = C.Program

@@ -9,11 +9,11 @@ import           GHC.Generics
 import           Quiet
 
 -- | Basic wrapper of statements
-newtype Statements stmt f = Statements { unStatements :: [stmt f] }
-    deriving (Generic, Eq)
-    deriving (Show) via (Quiet (Statements stmt f))
+newtype Statements stmt = Statements { unStatements :: [stmt] }
+    deriving (Generic, Eq, Functor, Foldable, Traversable)
+    deriving (Show) via (Quiet (Statements stmt))
 
 -- | Basic wrapper of program
-newtype Program stmt f = Program { unProgram :: (Statements stmt f) }
-    deriving (Generic, Eq)
-    deriving (Show) via (Quiet (Program stmt f))
+newtype Program stmt = Program { unProgram :: (Statements stmt) }
+    deriving (Generic, Eq, Functor, Foldable, Traversable)
+    deriving (Show) via (Quiet (Program stmt))

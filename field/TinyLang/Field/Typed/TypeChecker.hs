@@ -223,9 +223,7 @@ checkExpr m = do
 checkProgram
     :: forall m f. (MonadTypeChecker m, TextField f)
     => R.Program R.Var f -> m (T.Program f)
-checkProgram =
-    -- fmap (T.mkProgram . T.mkStatements) . mapM checkStatement . R.unStatements .  R.unProgram
-    traverse checkStatement
+checkProgram = traverse checkStatement
 
 
 {-| Type checking judgement for statements of form
