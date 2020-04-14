@@ -236,6 +236,13 @@ groundArbitraryFreqs vars =
     , (2, EVar   <$> chooseUniVar vars)
     ]
 
+boundedArbitraryStmt
+    :: (Field f, Arbitrary f, MonadGen m, MonadSupply m)
+    => Vars f -> Int -> m (Statement f)
+boundedArbitraryStmt vars size
+    | size <= 1 = EAssert <$> boundedArbitraryExpr vars size
+    | otherwise = undefined
+
 -- | Generate an expression of a particular type from a collection of variables
 -- with the number of nodes (approximately) bounded by 'size'.
 boundedArbitraryExpr
@@ -384,6 +391,12 @@ defaultUniConst =
     where
         uni = knownUni @f @a
 
+instance (Field f, Arbitrary f) => Arbitrary (Program f) where
+    arbitrary = undefined
+
+instance (Field f, Arbitrary f) => Arbitrary (Statements f) where
+    arbitrary = undefined
+
 -- We do not provide an implementation for 'arbitrary' (because we don't need it and it'd be
 -- annoying to write it), but we still want to make provide an 'Arbitrary' instance, so that
 -- 'shrink' can be used in the 'Arbitrary' instance of 'Expr' (a separately provided
@@ -397,6 +410,7 @@ instance (Field f, Arbitrary f) => Arbitrary (Statement f) where
     -- @lhs' == lhs'@ or @rhs' == rhs'@ where @lhs'@ and @rhs'@ are shrunk version of
     -- @lhs@ and @rhs@ respectively (just to have some shrinking that does not break the assertion).
     shrink (EAssert expr)    = EAssert <$> shrink expr
+    shrink (EFor uniVar start end stmts) = EFor uniVar start end <$> shrink stmts
 
 instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (Expr f a) where
     arbitrary = runSupplyGenT . sized $ \size -> do
