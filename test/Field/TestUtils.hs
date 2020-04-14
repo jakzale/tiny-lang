@@ -8,9 +8,10 @@ module Field.TestUtils
 
 import           TinyLang.Prelude
 
-import           TinyLang.Field.Raw.Core   (RawExpr)
+import           TinyLang.Field.Raw.Core   (RawStatements)
 import           TinyLang.Field.Raw.Parser
 import           TinyLang.ParseUtils
+
 
 import           System.FilePath
 import           System.FilePath.Glob
@@ -27,10 +28,10 @@ testFiles testDir = sort <$> globDir1 pat testDir
 goldenFile :: FilePath -> FilePath
 goldenFile filePath = dropExtension filePath ++ ".golden"
 
-parseRational :: String -> String -> Either String (RawExpr Rational)
+parseRational :: String -> String -> Either String (RawStatements Rational)
 parseRational fileName str = parseString pTop fileName str
 
-parseFilePath :: FilePath -> IO (Either String (RawExpr Rational))
+parseFilePath :: FilePath -> IO (Either String (RawStatements Rational))
 parseFilePath filePath =
     parseRational fileName <$> readFile filePath
     where

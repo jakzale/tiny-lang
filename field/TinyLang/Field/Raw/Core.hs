@@ -7,6 +7,7 @@ module TinyLang.Field.Raw.Core
     , BinOp(..)
     , UnOp(..)
     , Statement(..)
+    , Statements(..)
     , RawExpr
     , RawStatement
     , RawStatements
@@ -25,9 +26,12 @@ newtype Var = Var { unVar :: Identifier }
     deriving (Eq, Generic)
     deriving (Show) via (Quiet Var)
 
-{-| @Expr v f@ is parameterised by the type of variable @v@.
+{-| @Statements v f$, @Statement v f@, and @Expr v f@ are parameterised
+  by the type of variable @v@.
 -}
-type Statements v f = [Statement v f]
+newtype Statements v f = Statements { unStatements :: [Statement v f] }
+    deriving (Generic)
+    deriving (Show) via (Quiet (Statements v f))
 
 data Statement v f
     = ELet    v          (Expr v f)
@@ -70,7 +74,7 @@ data UnOp
 
 {-| = Utility Type Aliases
 -}
-type RawExpr = Expr Var
-type RawStatement = Statement Var
-type RawStatements f = Statements Var f
+type RawExpr       = Expr Var
+type RawStatement  = Statement Var
+type RawStatements = Statements Var
 

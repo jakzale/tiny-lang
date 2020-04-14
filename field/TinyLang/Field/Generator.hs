@@ -256,13 +256,13 @@ boundedArbitraryExpr vars0 size0 = go vars0 size0 where
                         <$> go vars size'
                         <*> go vars size'
                         <*> go vars size')
-            , (4, withOneofUnis $ \(_ :: Uni f a') -> do
-                    uniVar <- genFreshUniVar @f @a'
-                    let vars' = Some uniVar : vars
-                        size' = size `Prelude.div` 2
-                    EStatement . ELet uniVar
-                        <$> go vars  size'
-                        <*> go vars' size')
+            -- , (4, withOneofUnis $ \(_ :: Uni f a') -> do
+            --         uniVar <- genFreshUniVar @f @a'
+            --         let vars' = Some uniVar : vars
+            --             size' = size `Prelude.div` 2
+            --         EStatement . ELet uniVar
+            --             <$> go vars  size'
+            --             <*> go vars' size')
             , (2, withOneofUnOps  $ \unOp  -> do
                     let size' = size - 1
                     EAppUnOp unOp <$> go vars size')
@@ -271,26 +271,26 @@ boundedArbitraryExpr vars0 size0 = go vars0 size0 where
                     EAppBinOp binOp
                         <$> go vars size'
                         <*> go vars size')
-            , (round $ fromIntegral size / fromIntegral size0 * (4 :: Double), frequency
-                  [ (4, do
-                        -- Generates valid (but not necessarily holding) range constraints.
-                        let size' = size `Prelude.div` 3
-                        EStatement . EAssert
-                            <$> boundedArbitraryComparisons vars size'
-                            <*> go vars size')
-                  , (4, withOneofBinAsserts $ \binOp -> do
-                        -- Generates assertions of the @x op x@ form.
-                        let size' = size `Prelude.div` 2
-                        x <- go vars size'
-                        EStatement (EAssert $ EAppBinOp binOp x x)
-                            <$> go vars size')
-                  , (4, do
-                        let size' = size `Prelude.div` 2
-                        -- Generates assertions that are unlikely to hold.
-                        EStatement . EAssert
-                            <$> go vars size'
-                            <*> go vars size')
-                  ])
+            -- , (round $ fromIntegral size / fromIntegral size0 * (4 :: Double), frequency
+            --       [ (4, do
+            --             -- Generates valid (but not necessarily holding) range constraints.
+            --             let size' = size `Prelude.div` 3
+            --             EStatement . EAssert
+            --                 <$> boundedArbitraryComparisons vars size'
+            --                 <*> go vars size')
+            --       , (4, withOneofBinAsserts $ \binOp -> do
+            --             -- Generates assertions of the @x op x@ form.
+            --             let size' = size `Prelude.div` 2
+            --             x <- go vars size'
+            --             EStatement (EAssert $ EAppBinOp binOp x x)
+            --                 <$> go vars size')
+            --       , (4, do
+            --             let size' = size `Prelude.div` 2
+            --             -- Generates assertions that are unlikely to hold.
+            --             EStatement . EAssert
+            --                 <$> go vars size'
+            --                 <*> go vars size')
+            --       ])
             ]
 
         -- A generator of comparisons.

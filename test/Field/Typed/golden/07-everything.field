@@ -1,6 +1,9 @@
 let ?a = T;
 let ?b = F;
 let #v = {T, F, T};
+let ?e = ?i;
+let e  = i;
+let #e = #i; 
 let ?or = ?a or ?b;
 let ?and = ?or or ?b;
 let ?xor = ?and or ?or;

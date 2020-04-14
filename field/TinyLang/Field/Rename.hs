@@ -1,15 +1,16 @@
 module TinyLang.Field.Rename
-    ( renameStmt
+    ( renameStmts
     ) where
 
 import           TinyLang.Prelude
 
 import           TinyLang.Field.Typed.Core
 
-renameStmt :: MonadSupply m => Statement f -> m (Statement f)
-renameStmt stmt = do
-    supplyFromAtLeastFree stmt
-    runRenameM $ renameStatementM stmt
+
+renameStmts :: MonadSupply m => [Statement f] -> m [Statement f]
+renameStmts stmts = do
+    mapM_ supplyFromAtLeastFree stmts
+    runRenameM $ mapM renameStatementM stmts
 
 type RenameM = ReaderT (Env Unique) Supply
 

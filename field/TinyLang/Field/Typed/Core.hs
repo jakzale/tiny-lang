@@ -25,6 +25,7 @@ module TinyLang.Field.Typed.Core
     , ScopedVarSigs (..)
     , stmtVarSigs
     , stmtFreeVarSigs
+    , stmtsFreeVarSigs
     , supplyFromAtLeastFree
     , uniOfExpr
     ) where
@@ -245,6 +246,9 @@ stmtVarSigs = goStmt $ ScopedVarSigs mempty mempty where
     goExpr sigs (EAppUnOp _ x) = goExpr sigs x
     goExpr sigs (EAppBinOp _ x y) = goExpr (goExpr sigs x) y
     goExpr sigs (EIf b x y) = goExpr (goExpr (goExpr sigs b) x) y
+
+stmtsFreeVarSigs :: [Statement f] -> Env (VarSig f)
+stmtsFreeVarSigs = foldMap stmtFreeVarSigs
 
 stmtFreeVarSigs :: Statement f -> Env (VarSig f)
 stmtFreeVarSigs = _scopedVarSigsFree . stmtVarSigs

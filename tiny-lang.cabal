@@ -19,13 +19,13 @@ library
         Data.Field
         Data.Field.F17
         TinyLang.Environment
-        TinyLang.Generator
+--        TinyLang.Generator
         TinyLang.ParseUtils
         TinyLang.Prelude
         TinyLang.Var
         TinyLang.Field.Evaluator
         TinyLang.Field.Existential
-        TinyLang.Field.Generator
+--        TinyLang.Field.Generator
         TinyLang.Field.NamedType
         TinyLang.Field.Printer
         TinyLang.Field.Rename
@@ -80,7 +80,7 @@ test-suite tiny-lang-test
         Field.Axioms
         Field.Raw.Textual
         Field.TestUtils
-        Field.Typed.Textual
+--        Field.Typed.Textual
     default-language: Haskell2010
     build-depends:
         tiny-lang,
