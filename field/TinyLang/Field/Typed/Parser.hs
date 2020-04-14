@@ -32,10 +32,8 @@ import qualified Data.Map.Strict                  as Map
 instance TextField f => IsString (Scoped (Some (Expr f))) where
     fromString = either error (fmap $ forget Some) . runSupplyT . parseScopedExpr
 
--- instance TextField f => IsString (Some (Expr f)) where
---     fromString = _scopedValue <$> fromString
-
-
+instance TextField f => IsString (Some (Expr f)) where
+    fromString = _scopedValue <$> fromString
 
 -- | Parse a @String@ and return @Either@ an error message or an @Expr@ of some type.
 -- If the result is an error, then return the latest 'Scope', otherwise return the 'Scope'
