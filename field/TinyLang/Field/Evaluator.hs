@@ -114,16 +114,14 @@ normUniConst (UniConst Vector v) = UniConst Vector <$> normUnpacking v where
 -- | We want to allow order comparisons on elements of the field, but only
 -- if they're integers (whatever that means), and only if they're positive.
 -- If we get a non-integer or a negative integer we throw an error.
-compareIntegerValues
-    :: (MonadEvalError f m, AsInteger f)
+compareIntegerValues :: (MonadEvalError f m, AsInteger f)
     => (Integer -> Integer -> Bool) -> AField f -> AField f -> m Bool
 compareIntegerValues op a b = do
     m <- asPositiveIntegerEval a
     n <- asPositiveIntegerEval b
     return $ m `op` n
 
-evalUnOp
-    :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
+evalUnOp :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
     => UnOp f a b -> a -> m (UniConst f b)
 evalUnOp Not  = return . UniConst Bool . not
 evalUnOp Neq0 = return . UniConst Bool . (/= zer)
@@ -131,8 +129,7 @@ evalUnOp Neg  = return . UniConst Field . neg
 evalUnOp Inv  = fmap (UniConst Field) . invEval
 evalUnOp Unp  = asIntegerEval >=> fmap (UniConst Vector . Vector.fromList) . unpackPositiveAsc
 
-evalBinOp
-    :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
+evalBinOp :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
     => BinOp f a b c -> a -> b -> m (UniConst f c)
 evalBinOp Or  x y = return . UniConst Bool $ x || y
 evalBinOp And x y = return . UniConst Bool $ x && y
@@ -148,34 +145,33 @@ evalBinOp Mul x y = return . UniConst Field $ x `mul` y
 evalBinOp Div x y = UniConst Field <$> divEval x y
 evalBinOp BAt x y = asIntegerEval x >>= fmap (UniConst Bool) . flip atEval y . fromIntegral
 
-evalProgramUni
-    :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
+evalProgramUni :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
     => Env (SomeUniConst f) -> Program f -> m (Env (SomeUniConst f))
-evalProgramUni env = evalStatementsUni env . unProgram
+evalProgramUni env = (flip execStateT) env . evalStatementsUni . unProgram
 
-evalStatementsUni
-    :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
-    => Env (SomeUniConst f) -> Statements f -> m (Env (SomeUniConst f))
-evalStatementsUni env = foldM evalStatementUni env . unStatements
+evalStatementsUni :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
+    => Statements f -> StateT (Env (SomeUniConst f)) m ()
+evalStatementsUni = mapM_ evalStatementUni . unStatements
 
-evalStatementUni
-    :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
-    => Env (SomeUniConst f) -> Statement f ->  m (Env (SomeUniConst f))
-evalStatementUni env (ELet (UniVar _ var) def) = do
+evalStatementUni :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
+    => Statement f -> StateT  (Env (SomeUniConst f)) m ()
+evalStatementUni (ELet (UniVar _ var) def) = do
+    env <- get
     defR <- evalExprUni env def
-    pure $ insertVar var (Some defR) env
-evalStatementUni env (EAssert expr) = do
+    put $ insertVar var (Some defR) env
+evalStatementUni (EAssert expr) = do
+    env <- get
     exprR <- evalExpr env expr
     unless exprR $ throwError $ AssertionFailedEvalError expr
-    pure $ env
-evalStatementUni env (EFor (UniVar _ var) start end stmts) = foldM iteration env [start .. end] where
-    iteration env' i = evalStatementsUni env'' stmts where
-        env'' = insertVar var (Some $ fromInteger i) env'
+evalStatementUni (EFor (UniVar _ var) start end stmts) =
+    mapM_ iteration [start .. end] where
+    iteration i = do
+        modify' $ insertVar var (Some $ fromInteger i)
+        evalStatementsUni stmts
 
 -- Note that we could use dependent maps, but we don't.
 -- | A recursive evaluator for expressions. Perhaps simplistic, but it works.
-evalExprUni
-    :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
+evalExprUni :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
     => Env (SomeUniConst f) -> Expr f a -> m (UniConst f a)
 evalExprUni _   (EConst uniConst) = normUniConst uniConst
 evalExprUni env (EVar uniVar@(UniVar uni var)) = do
@@ -194,8 +190,7 @@ evalExprUni env (EAppBinOp op e1 e2) = do
     evalBinOp op e1R e2R
 
 -- | A recursive evaluator for expressions.
-evalExpr
-    :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
+evalExpr :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
     => Env (SomeUniConst f) -> Expr f a -> m a
 evalExpr env = fmap _uniConstVal . evalExprUni env
 
@@ -205,8 +200,7 @@ data ExprWithEnv f
       deriving (Show)
 
 -- | Evaluate an expression in a given environment
-evalExprWithEnv
-    :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
+evalExprWithEnv :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
     => ExprWithEnv f -> m (SomeUniConst f)
 evalExprWithEnv (ExprWithEnv (SomeOf uni expr) env) =
     Some . UniConst uni <$> evalExpr env expr
@@ -219,34 +213,34 @@ denoteUniConst (UniConst Vector v) = unAField . fromInteger . packPositiveAsc $ 
 denoteSomeUniConst :: Field f => SomeUniConst f -> f
 denoteSomeUniConst = forget denoteUniConst
 
-denoteExpr
-    :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
+denoteExpr :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
     => Env (SomeUniConst f) -> Expr f a -> m f
 denoteExpr env = fmap denoteUniConst . evalExprUni env
 
-normStatements
-    :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
+normStatements :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
     => Env (SomeUniConst f) -> Statements f -> m (Statements f)
 normStatements env0 = fmap mkStatements . go env0 . unStatements where
     go _   []            = pure []
     go env (stmt : rest) = do
         stmtN <- normStatement env stmt
         case stmtN of
+            -- Inline lex x = k if k is const
             ELet (UniVar _ var) (EConst uniConst) ->
                 go (insertVar var (Some uniConst) env)  rest
+            -- Drop for loop with an empty body
+            EFor _ _ _ stmts | [] <- unStatements stmts ->
+                go env rest
             _  ->
                 (:) stmtN <$> go env rest
 
-normStatement
-    :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
+normStatement :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
     => Env (SomeUniConst f) -> Statement f -> m (Statement f)
 normStatement env (ELet uniVar def) = ELet uniVar <$> normExpr env def
 normStatement env (EAssert expr) = EAssert <$> normExpr env expr
 normStatement env (EFor uniVar start end stmts) = EFor uniVar start end <$> normStatements env stmts
 
 -- | A recursive normalizer for expressions.
-normExpr
-    :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
+normExpr :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
     => Env (SomeUniConst f) -> Expr f a -> m (Expr f a)
 normExpr _   (EConst uniConst) = EConst <$> normUniConst uniConst
 normExpr env expr@(EVar uniVar@(UniVar uni var)) =
