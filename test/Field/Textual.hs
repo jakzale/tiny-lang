@@ -100,9 +100,9 @@ test_printerParserRoundtrip =
         ]
 
 parsePrint :: String -> String
-parsePrint = either id (stmtsToString WithIDs)
+parsePrint = either id (stmtsToString WithIDs . unStatements . unProgram)
              . runSupplyT
-             . parseStmts @Rational
+             . parseProgram @Rational
 
 
 parsePrintGolden :: String -> String -> TestTree

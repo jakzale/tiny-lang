@@ -81,7 +81,7 @@ stmtToString s (EFor (UniVar _ var) start end stmts) = concat
     , show end
     , " do\n"
     , unlines $ map (stmtToString s) $ unStatements stmts
-    , "end\n"
+    , "end"
     ]
 
 stmtsToString :: TextField f => PrintStyle -> [Statement f] -> String
