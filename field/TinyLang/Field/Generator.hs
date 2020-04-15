@@ -1,3 +1,4 @@
+{-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 {- | NOTE: comparisons.
@@ -30,8 +31,9 @@ import           TinyLang.Field.Typed.Core
 import qualified Data.IntMap.Strict               as IntMap
 import qualified Data.Vector                      as Vector
 import           QuickCheck.GenT
-import           Test.QuickCheck                  hiding (elements, frequency,
-                                                   listOf, oneof, resize, sized)
+import           Test.QuickCheck                  (Arbitrary, Gen, arbitrary,
+                                                   arbitrarySizedBoundedIntegral,
+                                                   shrink)
 import           Test.QuickCheck.Instances.Vector ()
 
 -- Our generators all run in such an @m@ that @MonadGen m@ and
@@ -172,8 +174,7 @@ instance (Field f, Arbitrary f) => Arbitrary (SomeUniConst f) where
 -- Note that @b@ is bound outside of the continuation and @a@ is bound inside.
 -- This means that the caller decides values of what type the generated operator must return,
 -- but the caller does not care about the type of argument and so we can pick any.
-withOneofUnOps
-    :: forall f b m r. (KnownUni f b, MonadGen m)
+withOneofUnOps :: forall f b m r. (KnownUni f b, MonadGen m)
     => (forall a. KnownUni f a => UnOp f a b -> m r) -> m r
 withOneofUnOps k = oneof $ case knownUni @f @b of
     Bool   -> [k Not, k Neq0]
@@ -184,8 +185,7 @@ withOneofUnOps k = oneof $ case knownUni @f @b of
 -- Note that @c@ is bound outside of the continuation and @a@ and @b@ are bound inside.
 -- This means that the caller decides values of what type the generated operator must return,
 -- but the caller does not care about the type of arguments and so we can pick any.
-withOneofBinOps
-    :: forall f c m d. (Field f, Arbitrary f, KnownUni f c, KnownUni f d, MonadGen m)
+withOneofBinOps :: forall f c m d. (Field f, Arbitrary f, KnownUni f c, KnownUni f d, MonadGen m)
     => (forall a b. (KnownUni f a, KnownUni f b) => BinOp f a b c -> m (Expr f d)) -> m (Expr f d)
 withOneofBinOps k = case knownUni @f @c of
     Bool   -> frequency $
@@ -228,40 +228,42 @@ arbitraryUnOpRing = elements [Neg]
 arbitraryBinOpRing :: MonadGen m => m (BinOp f (AField f) (AField f) (AField f))
 arbitraryBinOpRing = elements [Add, Sub, Mul]
 
-groundArbitraryFreqs
-    :: (Field f, Arbitrary f, KnownUni f a, MonadGen m)
+groundArbitraryFreqs :: (Field f, Arbitrary f, KnownUni f a, MonadGen m)
     => Vars f -> [(Int, m (Expr f a))]
 groundArbitraryFreqs vars =
     [ (1, EConst <$> arbitraryM)
     , (2, EVar   <$> chooseUniVar vars)
     ]
 
-boundedArbitraryStmts
-    :: forall m f. (Field f, Arbitrary f, MonadGen m, MonadSupply m)
-    => Vars f -> Int -> m (Statements f)
-boundedArbitraryStmts vars size = mkStatements <$> stmts where
-    stmts = resize size $ listOf $ boundedArbitraryStmt vars size
+boundedArbitraryStmts :: forall m f. (Field f, Arbitrary f, MonadGen m, MonadSupply m, MonadState (Vars f) m)
+    => Int -> m (Statements f)
+boundedArbitraryStmts size = mkStatements <$> stmts where
+    stmts = resize size $ listOf $ boundedArbitraryStmt size
 
-boundedArbitraryStmt
-    :: forall m f. (Field f, Arbitrary f, MonadGen m, MonadSupply m)
-    => Vars f -> Int -> m (Statement f)
-boundedArbitraryStmt vars size
-    | size <= 1 = EAssert <$> boundedArbitraryExpr vars size
+boundedArbitraryStmt :: forall m f. (Field f, Arbitrary f, MonadGen m, MonadSupply m, MonadState (Vars f) m)
+    => Int -> m (Statement f)
+boundedArbitraryStmt size
+    | size <= 1 = do
+          vars <- get
+          EAssert <$> boundedArbitraryExpr vars size
     | otherwise = frequency stmtGens where
           stmtGens = [ (1, withOneofUnis $ \(_ :: Uni f a') -> do
+                               vars <- get
                                uniVar <- genFreshUniVar @f @a'
                                let vars' = Some uniVar : vars
                                    size' = size - 1
                                ELet uniVar <$> boundedArbitraryExpr vars' size')
-                     , (1, EAssert <$> boundedArbitraryExpr vars size)
+                     , (1, do
+                               vars <- get
+                               EAssert <$> boundedArbitraryExpr vars size)
                      , (1, do
                                uniVar <- genFreshUniVar @f @(AField f)
-                               let vars' = Some uniVar : vars
-                                   size' = size - 1
-                                   start = liftGen arbitrary
-                                   end   = liftGen arbitrary
+                               modify' (Some uniVar :)
+                               let size' = size - 1
+                                   start = arbitraryM
+                                   end   = arbitraryM
 
-                               EFor uniVar <$> start <*> end <*> boundedArbitraryStmts vars' size')
+                               EFor uniVar <$> start <*> end <*> boundedArbitraryStmts size')
                      ]
 
 -- | Generate an expression of a particular type from a collection of variables
@@ -413,10 +415,20 @@ defaultUniConst =
         uni = knownUni @f @a
 
 instance (Field f, Arbitrary f) => Arbitrary (Program f) where
-    arbitrary = undefined
+    arbitrary = mkProgram <$> arbitrary
+
+instance MonadState s m => MonadState s (GenT m) where
+    get = lift get
+    put = lift . put
+    state = lift . state
 
 instance (Field f, Arbitrary f) => Arbitrary (Statements f) where
-    arbitrary = undefined
+    arbitrary = fmap ((flip evalState) vars) . fmap (runSupplyT) . runGenT $ stack where
+        vars = defaultVars
+        stack :: GenT (SupplyT (State (Vars f))) (Statements f)
+        stack = sized $ \size -> do
+            adjustUniquesForVars vars
+            boundedArbitraryStmts size
 
 -- We do not provide an implementation for 'arbitrary' (because we don't need it and it'd be
 -- annoying to write it), but we still want to make provide an 'Arbitrary' instance, so that
