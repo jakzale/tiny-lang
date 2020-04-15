@@ -123,8 +123,8 @@ instance KnownUni f a => Arbitrary (DefaultUniVar f a) where
     arbitrary = DefaultUniVar <$> chooseUniVar defaultVars
 
 -- | Generate a universe and feed it to the continuation.
-withOneofUnis :: MonadGen m => (forall a. KnownUni f a => Uni f a -> m b) -> m b
-withOneofUnis k = oneof [k Bool, k Field]
+withOneOfUnis :: MonadGen m => (forall a. KnownUni f a => Uni f a -> m b) -> m b
+withOneOfUnis k = oneof [k Bool, k Field]
 
 -- We define this as a separate function, because the @Arbitrary@ instance of @UniConst@ requires
 -- @KnownUni f a@ and we do not need this constraint in the shrinker, which we reuse in the
@@ -152,7 +152,7 @@ instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (UniConst f a) where
     shrink = shrinkUniConst
 
 instance (Field f, Arbitrary f) => Arbitrary (SomeUniConst f) where
-    arbitrary = withOneofUnis $ \(_ :: Uni f a) -> Some <$> arbitrary @(UniConst f a)
+    arbitrary = withOneOfUnis $ \(_ :: Uni f a) -> Some <$> arbitrary @(UniConst f a)
 
     shrink (Some uniConst) = Some <$> shrinkUniConst uniConst
 
@@ -174,9 +174,9 @@ instance (Field f, Arbitrary f) => Arbitrary (SomeUniConst f) where
 -- Note that @b@ is bound outside of the continuation and @a@ is bound inside.
 -- This means that the caller decides values of what type the generated operator must return,
 -- but the caller does not care about the type of argument and so we can pick any.
-withOneofUnOps :: forall f b m r. (KnownUni f b, MonadGen m)
+withOneOfUnOps :: forall f b m r. (KnownUni f b, MonadGen m)
     => (forall a. KnownUni f a => UnOp f a b -> m r) -> m r
-withOneofUnOps k = oneof $ case knownUni @f @b of
+withOneOfUnOps k = oneof $ case knownUni @f @b of
     Bool   -> [k Not, k Neq0]
     Field  -> [k Neg, k Inv]
     Vector -> [k Unp]
@@ -185,9 +185,9 @@ withOneofUnOps k = oneof $ case knownUni @f @b of
 -- Note that @c@ is bound outside of the continuation and @a@ and @b@ are bound inside.
 -- This means that the caller decides values of what type the generated operator must return,
 -- but the caller does not care about the type of arguments and so we can pick any.
-withOneofBinOps :: forall f c m d. (Field f, Arbitrary f, KnownUni f c, KnownUni f d, MonadGen m)
+withOneOfBinOps :: forall f c m d. (Field f, Arbitrary f, KnownUni f c, KnownUni f d, MonadGen m)
     => (forall a b. (KnownUni f a, KnownUni f b) => BinOp f a b c -> m (Expr f d)) -> m (Expr f d)
-withOneofBinOps k = case knownUni @f @c of
+withOneOfBinOps k = case knownUni @f @c of
     Bool   -> frequency $
         map ((,) 16) [k Or, k And, k Xor, k FEq] ++
         map ((,) 1)  [k FLt, k FLe, k FGe, k FGt, k BAt]
@@ -197,16 +197,16 @@ withOneofBinOps k = case knownUni @f @c of
     Vector -> EConst <$> arbitraryM
 
 -- | Generate a comparison operator and feed it to the continuation.
-withOneofComparisons
+withOneOfComparisons
     :: forall f m r. MonadGen m
     => (BinOp f (AField f) (AField f) Bool -> m r) -> m r
-withOneofComparisons k = oneof [k FLt, k FLe, k FGe, k FGt]
+withOneOfComparisons k = oneof [k FLt, k FLe, k FGe, k FGt]
 
 -- | Generate a binary operator that can be turned into an assertion and feed it to the continuation.
-withOneofBinAsserts
+withOneOfBinAsserts
     :: forall f m r. MonadGen m
     => (forall a. KnownUni f a => BinOp f a a Bool -> m r) -> m r
-withOneofBinAsserts k = oneof [k Or, k And, k Xor, k FEq, k FLt, k FLe, k FGe, k FGt]
+withOneOfBinAsserts k = oneof [k Or, k And, k Xor, k FEq, k FLt, k FLe, k FGe, k FGt]
 
 -- | An arbitrary integer value (for use in comparisons)
 arbitraryValI :: (Field f, MonadGen m) => m (UniConst f (AField f))
@@ -237,8 +237,15 @@ groundArbitraryFreqs vars =
 
 boundedArbitraryStmts :: forall m f. (Field f, Arbitrary f, MonadGen m, MonadSupply m, MonadState (Vars f) m)
     => Int -> m (Statements f)
-boundedArbitraryStmts size = mkStatements <$> stmts where
-    stmts = resize size $ listOf $ boundedArbitraryStmt size
+boundedArbitraryStmts size =
+    mkStatements <$> frequency [ (1, pure [])
+                               , (10, arbStmts)
+                               ]
+    where
+        arbStmts = do
+            numStmts :: Int <- choose (1, size)
+            let perStmtSize = size `Prelude.div` numStmts
+            resize numStmts $ listOf $ boundedArbitraryStmt perStmtSize
 
 boundedArbitraryStmt :: forall m f. (Field f, Arbitrary f, MonadGen m, MonadSupply m, MonadState (Vars f) m)
     => Int -> m (Statement f)
@@ -247,80 +254,63 @@ boundedArbitraryStmt size
           vars <- get
           EAssert <$> boundedArbitraryExpr vars size
     | otherwise = frequency stmtGens where
-          stmtGens = [ (1, withOneofUnis $ \(_ :: Uni f a') -> do
+          stmtGens = [ (3, withOneOfUnis $ \(_ :: Uni f a') -> do
                                vars <- get
                                uniVar <- genFreshUniVar @f @a'
                                let vars' = Some uniVar : vars
                                    size' = size - 1
+                               put vars'
                                ELet uniVar <$> boundedArbitraryExpr vars' size')
+                     -- Generate a completely random assertion (unlikely to hold)
                      , (1, do
                                vars <- get
                                EAssert <$> boundedArbitraryExpr vars size)
+                     -- generate a valid (but necessarily holding) contraint
                      , (1, do
+                                let size' = size - 1
+                                vars <- get
+                                EAssert <$> boundedArbitraryComparisons vars size')
+                     -- generate an assertion of form @x binOp x@
+                     , (1, withOneOfBinAsserts $ \binOp -> do
+                               let size' = size `Prelude.div` 2
+                               vars <- get
+                               x <- boundedArbitraryExpr vars size'
+                               pure $ EAssert $ EAppBinOp binOp x x)
+                     -- generate a for loop
+                     , (3, do
                                uniVar <- genFreshUniVar @f @(AField f)
                                modify' (Some uniVar :)
                                let size' = size - 1
                                    start = arbitraryM
                                    end   = arbitraryM
-
                                EFor uniVar <$> start <*> end <*> boundedArbitraryStmts size')
                      ]
 
--- | Generate an expression of a particular type from a collection of variables
+-- | Generate an expression of a particular type from a collection of variablesf
 -- with the number of nodes (approximately) bounded by 'size'.
-boundedArbitraryExpr
-    :: (Field f, Arbitrary f, KnownUni f a, MonadGen m, MonadSupply m)
+boundedArbitraryExpr :: forall m f a. (Field f, Arbitrary f, KnownUni f a, MonadGen m, MonadSupply m)
     => Vars f -> Int -> m (Expr f a)
-boundedArbitraryExpr vars0 size0 = go vars0 size0 where
-    go :: forall f a m. (Field f, Arbitrary f, KnownUni f a, MonadGen m, MonadSupply m)
-       => Vars f -> Int -> m (Expr f a)
-    go vars size | size <= 1 = frequency $ groundArbitraryFreqs vars
-    go vars size             = frequency everything where
-        everything = groundArbitraryFreqs vars ++ recursive ++ comparisons (size `Prelude.div` 2)
+boundedArbitraryExpr vars size
+    | size <= 1 = frequency $ groundArbitraryFreqs vars
+    | otherwise = frequency everything where
+        everything = groundArbitraryFreqs vars ++ expressions ++ comparisons (size `Prelude.div` 2)
 
         -- The most general generator.
-        recursive =
+        expressions =
             [ (2, do
                     let size' = size `Prelude.div` 3
                     EIf
-                        <$> go vars size'
-                        <*> go vars size'
-                        <*> go vars size')
-            -- , (4, withOneofUnis $ \(_ :: Uni f a') -> do
-            --         uniVar <- genFreshUniVar @f @a'
-            --         let vars' = Some uniVar : vars
-            --             size' = size `Prelude.div` 2
-            --         EStatement . ELet uniVar
-            --             <$> go vars  size'
-            --             <*> go vars' size')
-            , (2, withOneofUnOps  $ \unOp  -> do
+                        <$> boundedArbitraryExpr vars size'
+                        <*> boundedArbitraryExpr vars size'
+                        <*> boundedArbitraryExpr vars size')
+            , (2, withOneOfUnOps  $ \unOp  -> do
                     let size' = size - 1
-                    EAppUnOp unOp <$> go vars size')
-            , (4, withOneofBinOps $ \binOp -> do
+                    EAppUnOp unOp <$> boundedArbitraryExpr vars size')
+            , (4, withOneOfBinOps $ \binOp -> do
                     let size' = size `Prelude.div` 2
                     EAppBinOp binOp
-                        <$> go vars size'
-                        <*> go vars size')
-            -- , (round $ fromIntegral size / fromIntegral size0 * (4 :: Double), frequency
-            --       [ (4, do
-            --             -- Generates valid (but not necessarily holding) range constraints.
-            --             let size' = size `Prelude.div` 3
-            --             EStatement . EAssert
-            --                 <$> boundedArbitraryComparisons vars size'
-            --                 <*> go vars size')
-            --       , (4, withOneofBinAsserts $ \binOp -> do
-            --             -- Generates assertions of the @x op x@ form.
-            --             let size' = size `Prelude.div` 2
-            --             x <- go vars size'
-            --             EStatement (EAssert $ EAppBinOp binOp x x)
-            --                 <$> go vars size')
-            --       , (4, do
-            --             let size' = size `Prelude.div` 2
-            --             -- Generates assertions that are unlikely to hold.
-            --             EStatement . EAssert
-            --                 <$> go vars size'
-            --                 <*> go vars size')
-            --       ])
+                        <$> boundedArbitraryExpr vars size'
+                        <*> boundedArbitraryExpr vars size')
             ]
 
         -- A generator of comparisons.
@@ -328,11 +318,10 @@ boundedArbitraryExpr vars0 size0 = go vars0 size0 where
             Bool -> [(2, boundedArbitraryComparisons vars size')]
             _    -> []
 
-boundedArbitraryComparisons
-    :: (Field f, Arbitrary f, MonadGen m, MonadSupply m)
+boundedArbitraryComparisons :: (Field f, Arbitrary f, MonadGen m, MonadSupply m)
     => Vars f -> Int -> m (Expr f Bool)
 boundedArbitraryComparisons vars size' =
-    withOneofComparisons $ \comp ->
+    withOneOfComparisons $ \comp ->
         EAppBinOp comp
             <$> boundedArbitraryExprI vars size'
             <*> boundedArbitraryExprI vars size'
@@ -367,13 +356,6 @@ boundedArbitraryExprI vars size             = frequency
                 <$> boundedArbitraryExpr  vars size'
                 <*> boundedArbitraryExprI vars size'
                 <*> boundedArbitraryExprI vars size')
-    -- , (2, do
-    --         uniVar <- genFreshUniVar
-    --         let vars' = Some uniVar : vars
-    --             size' = size `Prelude.div` 2
-    --         EStatement . ELet uniVar
-    --             <$> boundedArbitraryExprI vars size'
-    --             <*> boundedArbitraryExprI vars' size')
     , (2, do
             let size' = size - 1
             EAppUnOp
@@ -473,7 +455,7 @@ instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (Expr f a) where
 
 -- An instance that QuickCheck can use for tests.
 instance (Field f, Arbitrary f) => Arbitrary (SomeUniExpr f) where
-    arbitrary = withOneofUnis $ \uni -> SomeOf uni <$> arbitrary
+    arbitrary = withOneOfUnis $ \uni -> SomeOf uni <$> arbitrary
 
     shrink (SomeOf uni0 expr) =
         map (SomeOf uni0) (withKnownUni uni0 $ shrink expr) ++ case expr of

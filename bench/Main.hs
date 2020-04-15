@@ -1,6 +1,8 @@
 import           TinyLang.Field.Generator  ()
 import           TinyLang.Field.Typed.Core
 
+import           Control.Monad
+import           Data.List
 import           Test.QuickCheck
 
 -- A couple of functions for checking the output of generators
@@ -26,7 +28,7 @@ progDepth :: Program f -> Int
 progDepth = stmtsDepth . unProgram
 
 stmtsDepth :: Statements f -> Int
-stmtsDepth = maximum . map stmtDepth . unStatements
+stmtsDepth = maximum . (0:) . map stmtDepth . unStatements
 
 stmtDepth :: Statement f -> Int
 stmtDepth (ELet _ e)         = 1 + exprDepth e
@@ -40,41 +42,40 @@ exprDepth (EAppUnOp _ e)      = 1 + exprDepth e
 exprDepth (EAppBinOp _ e1 e2) = 1 + max (exprDepth e1) (exprDepth e2)
 exprDepth (EIf e e1 e2)       = 1 + max (exprDepth e)  (max (exprDepth e1) (exprDepth e2))
 
--- data TestResult = TestResult { nodes :: Int
---                              , depth :: Int
---                              }
+data TestResult = TestResult { nodes :: Int
+                             , depth :: Int
+                             }
+                  deriving (Show)
 
-testGen :: Int -> Int -> IO ()
-testGen n size =
-    let arb = arbitrary :: Gen (Program (AField Rational))
-        -- ^ Just so that we can define the generator near the top.
-        maxInt = maxBound :: Int
-    in do
-      loop n arb maxInt 0 0 maxInt 0 0
-    where
-      loop k arb mind maxd sumd minn maxn sumn =
-          if k <= 0 then
-              let meand = Prelude.div sumd n
-                  meann = Prelude.div sumn n
-              in do
-                putStrLn $ "\nRequested size = " ++ show size
-                putStrLn ""
-                putStrLn $ "Minimum depth = " ++ show mind
-                putStrLn $ "Maximum depth = " ++ show maxd
-                putStrLn $ "Mean depth    = " ++ show meand
-                putStrLn ""
-                putStrLn $ "Minimum number of nodes = " ++ show minn
-                putStrLn $ "Maximum number of nodes = " ++ show maxn
-                putStrLn $ "Mean number of nodes    = " ++ show meann
-                putStrLn ""
-          else
-              do
-                putStr $ "Generated " ++ show (n-k+1) ++ " ASTs\r"
-                e <- generate (resize size arb)
-                let d = progDepth e
-                    m = progNodes e
-                loop (k-1) arb (min mind d) (max maxd d) (sumd + d)
-                               (min minn m) (max maxn m) (sumn + m)
+runGen :: Int -> IO TestResult
+runGen size = do
+    prog <- generate (resize size arbitrary) :: IO (Program (AField Rational))
+    pure $ TestResult (progNodes prog) (progDepth prog)
+
+average :: (Real a, Fractional b) => [a] -> b
+average xs = realToFrac (sum xs) / genericLength xs
 
 main :: IO ()
-main = testGen 5 100
+main = do
+    let size = 1000
+    let runs = 1000 :: Int
+    putStrLn $ "Requested runs:  " ++ show runs
+    putStrLn $ "Requested size:  " ++ show size
+    results <- forM [1 .. runs] $ \_ -> runGen size
+    let nodess = map nodes results
+    let depths = map depth results
+    let minn = minimum nodess
+    let maxn = maximum nodess
+    let avgn = average nodess :: Double
+    let maxd = maximum depths
+    let mind = minimum depths
+    let avgd = average depths :: Double
+    putStrLn ""
+    putStrLn $ "Minimum depth = " ++ show mind
+    putStrLn $ "Maximum depth = " ++ show maxd
+    putStrLn $ "Mean depth    = " ++ show avgd
+    putStrLn ""
+    putStrLn $ "Minimum number of nodes = " ++ show minn
+    putStrLn $ "Maximum number of nodes = " ++ show maxn
+    putStrLn $ "Mean number of nodes    = " ++ show avgn
+    putStrLn ""
