@@ -4,6 +4,7 @@ module TinyLang.Field.Printer
     , someExprToString
     , stmtToString
     , stmtsToString
+    , progToString
     ) where
 
 import           TinyLang.Prelude
@@ -71,6 +72,7 @@ stmtToString s (ELet (UniVar _ var) def) = concat
     , exprToString s def
     , ";"
     ]
+
 stmtToString s (EAssert expr)            = "assert " ++ exprToString s expr ++ ";"
 stmtToString s (EFor (UniVar _ var) start end stmts) = concat
     [ "for "
@@ -84,9 +86,11 @@ stmtToString s (EFor (UniVar _ var) start end stmts) = concat
     , "end"
     ]
 
-stmtsToString :: TextField f => PrintStyle -> [Statement f] -> String
-stmtsToString ps = unlines . (map (stmtToString ps))
+stmtsToString :: TextField f => PrintStyle -> (Statements f) -> String
+stmtsToString ps = unlines . (map (stmtToString ps)) . unStatements
 
+progToString :: TextField f => PrintStyle -> Program f -> String
+progToString ps = stmtsToString ps . unProgram
 
 -- Main function
 exprToString :: TextField f => PrintStyle -> Expr f a -> String
