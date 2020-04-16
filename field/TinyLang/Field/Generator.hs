@@ -29,11 +29,13 @@ import           TinyLang.Field.Evaluator
 import           TinyLang.Field.Typed.Core
 
 import qualified Data.IntMap.Strict               as IntMap
+import           Data.Kind
 import qualified Data.Vector                      as Vector
 import           QuickCheck.GenT
+import           Quiet
 import           Test.QuickCheck                  (Arbitrary, Gen, arbitrary,
                                                    arbitrarySizedBoundedIntegral,
-                                                   shrink)
+                                                   shrink, shrinkList)
 import           Test.QuickCheck.Instances.Vector ()
 
 -- Our generators all run in such an @m@ that @MonadGen m@ and
@@ -235,6 +237,32 @@ groundArbitraryFreqs vars =
     , (2, EVar   <$> chooseUniVar vars)
     ]
 
+newtype SGenT f (m :: Type -> Type) a =
+    SGen { unSGenT :: GenT (SupplyT (StateT (Vars f) m)) a }
+    deriving newtype ( Monad
+                     , Functor
+                     , Applicative
+                     , MonadSupply
+                     , MonadState (Vars f)
+                     , MonadGen
+                     )
+
+-- TODO:  Is there a way to automate this?
+instance MonadState s m => MonadState s (GenT m) where
+    get = lift get
+    put = lift . put
+    state = lift . state
+
+
+type SGen f a = SGenT f Identity a
+
+-- Not sure if this is the right type
+runSGenT :: (Monad m) => Vars f -> SGenT f m a -> Gen (m a)
+runSGenT vars = fmap ((flip evalStateT) vars) . fmap (runSupplyT) . runGenT . unSGenT
+
+runSGen :: Vars f -> SGen f a -> Gen a
+runSGen vars = fmap runIdentity . runSGenT vars
+
 boundedArbitraryStmts :: forall m f. (Field f, Arbitrary f, MonadGen m, MonadSupply m, MonadState (Vars f) m)
     => Int -> m (Statements f)
 boundedArbitraryStmts size =
@@ -396,21 +424,29 @@ defaultUniConst =
     where
         uni = knownUni @f @a
 
+-- TODO:  Define a newtype wrapper for different shrinkers
+newtype TypePreserving a = TP { unTP :: a }
+    deriving (Generic, Eq, Functor, Foldable, Traversable)
+    deriving (Show) via (Quiet (TypePreserving a))
+
+newtype NonTypePreserving a = NTP { unNTP :: a }
+    deriving (Generic, Eq, Functor, Foldable, Traversable)
+    deriving (Show) via (Quiet (NonTypePreserving a))
+
+
 instance (Field f, Arbitrary f) => Arbitrary (Program f) where
     arbitrary = mkProgram <$> arbitrary
+    shrink    = fmap mkProgram . shrink . unProgram
 
-instance MonadState s m => MonadState s (GenT m) where
-    get = lift get
-    put = lift . put
-    state = lift . state
 
 instance (Field f, Arbitrary f) => Arbitrary (Statements f) where
-    arbitrary = fmap ((flip evalState) vars) . fmap (runSupplyT) . runGenT $ stack where
+    arbitrary = runSGen vars stmtsGen where
         vars = defaultVars
-        stack :: GenT (SupplyT (State (Vars f))) (Statements f)
-        stack = sized $ \size -> do
+        stmtsGen = sized $ \size -> do
             adjustUniquesForVars vars
             boundedArbitraryStmts size
+    shrink = fmap mkStatements . shrinkList shrink . unStatements
+
 
 -- We do not provide an implementation for 'arbitrary' (because we don't need it and it'd be
 -- annoying to write it), but we still want to make provide an 'Arbitrary' instance, so that
@@ -424,8 +460,9 @@ instance (Field f, Arbitrary f) => Arbitrary (Statement f) where
     -- (which most of the time will break the assertion) we should shrink @lhs == rhs@ to
     -- @lhs' == lhs'@ or @rhs' == rhs'@ where @lhs'@ and @rhs'@ are shrunk version of
     -- @lhs@ and @rhs@ respectively (just to have some shrinking that does not break the assertion).
-    shrink (EAssert expr)    = EAssert <$> shrink expr
-    shrink (EFor uniVar start end stmts) = EFor uniVar start end <$> shrink stmts
+    shrink (EAssert expr) = EAssert <$> shrink expr
+    shrink (EFor uniVar start end stmts) =  efor <$> shrink (start, end, stmts) where
+        efor (a, b, c) = EFor uniVar a b c
 
 instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (Expr f a) where
     arbitrary = runSupplyGenT . sized $ \size -> do
