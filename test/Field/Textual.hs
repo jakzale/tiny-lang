@@ -59,31 +59,31 @@ forgetIDs (EIf e e1 e2)        = EIf (forgetIDs e) (forgetIDs e1) (forgetIDs e2)
        quickCheck (stdArgs {maxSuccess=500, maxSize=1000}) (prop_Ftest :: SomeUniExpr F17 -> Bool)
 -}
 
-stmt_prop_Ftest :: (Eq f, TextField f) => Program f -> Either String ()
-stmt_prop_Ftest prog = do
-    prog' <- runSupplyT $ parseProgram $ progToString NoIDs prog
+prop_prog_roundtrip :: forall f. (Eq f, TextField f) => Program f -> Either String ()
+prop_prog_roundtrip prog = do
+    prog' <- runSupplyT $ parseProgram @f $ progToString NoIDs prog
     when (forgetProgramIDs prog /= forgetProgramIDs prog) . Left $ concat
         [ progToString NoIDs prog
         , " is not equal to "
         , progToString NoIDs prog'
         ]
     
-prop_Ftest :: (Eq f, TextField f) => SomeUniExpr f -> Either String ()
-prop_Ftest (SomeOf uni expr) = do
-    SomeOf uni' expr' <- runSupplyT $ parseExpr (exprToString NoIDs expr)
-    let checkResult expr'' =
-            when (forgetIDs expr /= forgetIDs expr'') . Left $ concat
-                [ exprToString NoIDs expr
-                , " is not equal to "
-                , exprToString NoIDs expr'
-                ]
-        uniMismatch =
-            Left $ concat
-                [ show uni
-                , " is not equal to "
-                , show uni'
-                ]
-    withGeqUni uni uni' uniMismatch $ checkResult expr'
+-- prop_Ftest :: (Eq f, TextField f) => SomeUniExpr f -> Either String ()
+-- prop_Ftest (SomeOf uni expr) = do
+--     SomeOf uni' expr' <- runSupplyT $ parseExpr (exprToString NoIDs expr)
+--     let checkResult expr'' =
+--             when (forgetIDs expr /= forgetIDs expr'') . Left $ concat
+--                 [ exprToString NoIDs expr
+--                 , " is not equal to "
+--                 , exprToString NoIDs expr'
+--                 ]
+--         uniMismatch =
+--             Left $ concat
+--                 [ show uni
+--                 , " is not equal to "
+--                 , show uni'
+--                 ]
+--     withGeqUni uni uni' uniMismatch $ checkResult expr'
 
 data Binding f = forall a. Binding (UniVar f a) (Expr f a)
 
@@ -94,18 +94,18 @@ instance (Field f, Arbitrary f) => Arbitrary (Binding f) where
         withOneOfUnis $ \(_ :: Uni f a) ->
             Binding @f @a . unDefaultUniVar <$> arbitrary <*> arbitrary
 
-prop_nestedELet
-    :: forall f. (Eq f, TextField f)
-    => [Binding f] -> SomeUniExpr f -> Either String ()
-prop_nestedELet bindings body0 = prop_Ftest $ foldr bind body0 bindings where
-    bind :: Binding f -> SomeUniExpr f -> SomeUniExpr f
-    bind (Binding uniVar body) (SomeOf uni expr) =
-        SomeOf uni $ EStatement (ELet uniVar body) expr
+-- prop_nestedELet
+--     :: forall f. (Eq f, TextField f)
+--     => [Binding f] -> SomeUniExpr f -> Either String ()
+-- prop_nestedELet bindings body0 = prop_Ftest $ foldr bind body0 bindings where
+--     bind :: Binding f -> SomeUniExpr f -> SomeUniExpr f
+--     bind (Binding uniVar body) (SomeOf uni expr) =
+--         SomeOf uni $ EStatement (ELet uniVar body) expr
 
 test_checkParseGeneric :: TestTree
 test_checkParseGeneric =
     testProperty "checkParseGeneric2" $
-        withMaxSuccess 1000 . property $ prop_Ftest @JJ.F
+        withMaxSuccess 1000 . property $ prop_prog_roundtrip @JJ.F
 
 -- test_checkParseNestedLets :: TestTree
 -- test_checkParseNestedLets =
@@ -116,12 +116,11 @@ test_printerParserRoundtrip :: TestTree
 test_printerParserRoundtrip =
     testGroup "printerParserRoundtrip"
         [ test_checkParseGeneric
-        -- , test_checkParseGeneric2
         -- , test_checkParseNestedLets
         ]
 
 parsePrint :: String -> String
-parsePrint = either id (stmtsToString WithIDs . unStatements . unProgram)
+parsePrint = either id (progToString WithIDs)
              . runSupplyT
              . parseProgram @Rational
 

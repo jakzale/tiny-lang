@@ -434,10 +434,24 @@ newtype NonTypePreserving a = NTP { unNTP :: a }
     deriving (Show) via (Quiet (NonTypePreserving a))
 
 
+-- | Type preserving generation and shrinking of programs
+instance (Field f, Arbitrary f) => Arbitrary (TypePreserving (Program f)) where
+    arbitrary = TP <$> arbitrary
+    shrink    = fmap TP . shrink . unTP
+
+instance (Field f, Arbitrary f) => Arbitrary (NonTypePreserving (Program f)) where
+    arbitrary = NTP <$> arbitrary
+    shrink    = undefined
+
 instance (Field f, Arbitrary f) => Arbitrary (Program f) where
     arbitrary = mkProgram <$> arbitrary
     shrink    = fmap mkProgram . shrink . unProgram
 
+progShrinkTP :: Program f -> [Program f]
+progShrinkTP = const []
+
+progShrinkNTP :: Program f -> [Program f]
+progShrinkNTP = const []
 
 instance (Field f, Arbitrary f) => Arbitrary (Statements f) where
     arbitrary = runSGen vars stmtsGen where
@@ -445,13 +459,10 @@ instance (Field f, Arbitrary f) => Arbitrary (Statements f) where
         stmtsGen = sized $ \size -> do
             adjustUniquesForVars vars
             boundedArbitraryStmts size
+
     shrink = fmap mkStatements . shrinkList shrink . unStatements
 
 
--- We do not provide an implementation for 'arbitrary' (because we don't need it and it'd be
--- annoying to write it), but we still want to make provide an 'Arbitrary' instance, so that
--- 'shrink' can be used in the 'Arbitrary' instance of 'Expr' (a separately provided
--- 'shrinkStatement' wouldn't work, because we want to shrink a pair of values, see the instance).
 instance (Field f, Arbitrary f) => Arbitrary (Statement f) where
     arbitrary = error "Panic: no implementation of 'arbitrary' for 'Statement'"
 
@@ -470,42 +481,38 @@ instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (Expr f a) where
         adjustUniquesForVars vars
         boundedArbitraryExpr vars size
 
-    -- TODO: also add @[SomeUniExpr f normed | normed /= expr, normed = normExpr env expr]@,
-    -- but do not forget to catch exceptions.
-    shrink (EConst uniConst) = EConst <$> shrink uniConst
-    shrink expr0             = EConst defaultUniConst : case expr0 of
-        EAppUnOp op e ->
-            withUnOpUnis op $ \uni _ ->
-            withKnownUni uni $
-                EAppUnOp op <$> shrink e
-        EAppBinOp op e1 e2 ->
-            withBinOpUnis op $ \uni1 uni2 _ ->
-            withKnownUni uni1 $
-            withKnownUni uni2 $
-                uncurry (EAppBinOp op) <$> shrink (e1, e2)
-        EIf e e1 e2 -> e1 : e2 : (uncurry (uncurry EIf) <$> shrink ((e, e1), e2))
-        EConst _ -> []
-        EVar _ -> []
-        -- TODO: we can safely drop an assertion and we can drop a let-expression when
-        -- the let-bound variable is not used in @expr@.
-        -- EStatement stat expr -> uncurry EStatement <$> shrink (stat, expr)
+--     -- TODO: also add @[SomeUniExpr f normed | normed /= expr, normed = normExpr env expr]@,
+--     -- but do not forget to catch exceptions.
+--     shrink (EConst uniConst) = EConst <$> shrink uniConst
+--     shrink expr0             = EConst defaultUniConst : case expr0 of
+--         EAppUnOp op e ->
+--             withUnOpUnis op $ \uni _ ->
+--             withKnownUni uni $
+--                 EAppUnOp op <$> shrink e
+--         EAppBinOp op e1 e2 ->
+--             withBinOpUnis op $ \uni1 uni2 _ ->
+--             withKnownUni uni1 $
+--             withKnownUni uni2 $
+--                 uncurry (EAppBinOp op) <$> shrink (e1, e2)
+--         EIf e e1 e2 -> e1 : e2 : (uncurry (uncurry EIf) <$> shrink ((e, e1), e2))
+--         EConst _ -> []
+--         EVar _ -> []
+
 
 -- An instance that QuickCheck can use for tests.
-instance (Field f, Arbitrary f) => Arbitrary (SomeUniExpr f) where
-    arbitrary = withOneOfUnis $ \uni -> SomeOf uni <$> arbitrary
+-- TODO:  Uncomment
+-- instance (Field f, Arbitrary f) => Arbitrary (SomeUniExpr f) where
+--     arbitrary = withOneOfUnis $ \uni -> SomeOf uni <$> arbitrary
 
-    shrink (SomeOf uni0 expr) =
-        map (SomeOf uni0) (withKnownUni uni0 $ shrink expr) ++ case expr of
-            EAppUnOp op e -> withUnOpUnis op $ \argUni _ -> [SomeOf argUni e]
-            EAppBinOp op e1 e2 ->
-                withBinOpUnis op $ \uni1 uni2 _ ->
-                    [SomeOf uni1 e1, SomeOf uni2 e2]
-            EIf e _ _ -> [SomeOf Bool e]
-            EConst _ -> []
-            EVar _ -> []
-            -- EStatement stat _ -> case stat of
-            --     ELet (UniVar uni _) def -> [SomeOf uni def]
-            --     EAssert e               -> [SomeOf Bool e]
+--     shrink (SomeOf uni0 expr) =
+--         map (SomeOf uni0) (withKnownUni uni0 $ shrink expr) ++ case expr of
+--             EAppUnOp op e -> withUnOpUnis op $ \argUni _ -> [SomeOf argUni e]
+--             EAppBinOp op e1 e2 ->
+--                 withBinOpUnis op $ \uni1 uni2 _ ->
+--                     [SomeOf uni1 e1, SomeOf uni2 e2]
+--             EIf e _ _ -> [SomeOf Bool e]
+--             EConst _ -> []
+--             EVar _ -> []
 
 genEnvFromVarSigs :: (Field f, Arbitrary f) => Env (VarSig f) -> Gen (Env (SomeUniConst f))
 genEnvFromVarSigs =
@@ -516,12 +523,13 @@ genEnvFromVarSigs =
 -- "generate (resize 1000 arbitrary :: Gen (ExprWithEnv F17))" to get
 -- bigger expressions.  There's no means provided to generate things
 -- over non-default sets of variables, but this would be easy to do.
-instance (Field f, Arbitrary f) => Arbitrary (ExprWithEnv f) where
-    arbitrary = do
-        someUniExpr <- arbitrary
-        vals <- forget (genEnvFromVarSigs . exprFreeVarSigs) someUniExpr
-        return $ ExprWithEnv someUniExpr vals
-    shrink (ExprWithEnv someUniExpr (Env vals)) =
-        -- TODO: test me.
-        flip map (shrink someUniExpr) $ \shrunk@(SomeOf _ expr) ->
-            ExprWithEnv shrunk . Env . IntMap.intersection vals . unEnv $ exprFreeVarSigs expr
+-- TODO:  Uncomment
+-- instance (Field f, Arbitrary f) => Arbitrary (ExprWithEnv f) where
+--     arbitrary = do
+--         someUniExpr <- arbitrary
+--         vals <- forget (genEnvFromVarSigs . exprFreeVarSigs) someUniExpr
+--         return $ ExprWithEnv someUniExpr vals
+--     shrink (ExprWithEnv someUniExpr (Env vals)) =
+--         -- TODO: test me.
+--         flip map (shrink someUniExpr) $ \shrunk@(SomeOf _ expr) ->
+--             ExprWithEnv shrunk . Env . IntMap.intersection vals . unEnv $ exprFreeVarSigs expr
