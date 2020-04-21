@@ -5,8 +5,10 @@
 
 module Field.Textual
     ( test_textual
+    , gen_test_roundtrip
     ) where
 
+import           Field.TestUtils
 import           Data.Field.F17
 import           TinyLang.Field.Generator
 import qualified TinyLang.Field.Jubjub       as JJ
@@ -15,7 +17,6 @@ import           TinyLang.Field.Typed.Core
 import           TinyLang.Field.Typed.Parser
 import           TinyLang.Prelude
 
-import           System.Directory
 import           System.FilePath
 import           Test.QuickCheck
 import           Test.Tasty
@@ -33,7 +34,7 @@ import           Test.Tasty.QuickCheck
 forgetProgramIDs :: Program f -> Program f
 forgetProgramIDs = fmap forgetStatementIDs
 
--- forgetStatementsIDs :: Statements f -> Statements f
+    -- forgetStatementsIDs :: Statements f -> Statements f
 -- forgetStatementsIDs = fmap forgetStatementIDs
 
 forgetID :: UniVar f a -> UniVar f a
@@ -101,46 +102,24 @@ test_printerParserRoundtrip =
         , test_checkParseNestedLets
         ]
 
-parsePrint :: String -> String
-parsePrint = either id (progToString WithIDs)
-             . runSupplyT
-             . parseProgram @Rational
-
-
-parsePrintGolden :: String -> String -> TestTree
-parsePrintGolden name expr =
-    withResource (createDirectoryIfMissing True folder) mempty $ \_ ->
-        goldenVsString
-            name
-            (folder </> name <> ".golden")
-            (return . fromString $ parsePrint expr)
-  where
-    folder = "test" </> "Field" </> "golden"
-
-test_forLoops :: TestTree
-test_forLoops = parsePrintGolden "forLoops" $ unlines
-    [ "for i = 1 to 2 do"
-    , "    let i' = i;"
-    , "    for j = 2 to 3 do"
-    , "        let k = i * j;"
-    , "        assert k == i' * j;"
-    , "    end;"
-    , "    let p = i;"
-    , "    for l = 1 to 2 do"
-    , "        let p = p * l;"
-    , "    end;"
-    , "end;"
-    ]
-
-test_parsePrintGolden :: TestTree
-test_parsePrintGolden =
-    testGroup "parsePrintGolden"
-        [ test_forLoops
-        ]
-
 test_textual :: TestTree
 test_textual =
     testGroup "textual"
         [ test_printerParserRoundtrip
-        , test_parsePrintGolden
         ]
+
+parsePrintFilePath :: FilePath -> IO String
+parsePrintFilePath filePath = either id (progToString WithIDs) <$> typeCheckFilePath filePath
+
+testDir :: FilePath
+testDir = "test" </> "Field" </> "golden"
+
+genTest :: FilePath -> TestTree
+genTest filePath = goldenVsString name golden action
+    where name   = takeBaseName filePath
+          golden = goldenFile filePath
+          action = fromString <$> parsePrintFilePath filePath
+
+gen_test_roundtrip :: IO TestTree
+gen_test_roundtrip =
+    discoverTests "roundtrip golden" testDir genTest

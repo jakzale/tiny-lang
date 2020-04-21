@@ -4,13 +4,17 @@ module Field.TestUtils
     , parseRational
     , parseFilePath
     , discoverTests
+    , typeCheckFilePath
     ) where
 
 import           TinyLang.Prelude
 
-import           TinyLang.Field.Raw.Core   (RawProgram)
+import           TinyLang.Field.Raw.Core     (RawProgram)
 import           TinyLang.Field.Raw.Parser
+import           TinyLang.Field.Typed.Core   (Program)
+import           TinyLang.Field.Typed.Parser
 import           TinyLang.ParseUtils
+import           TinyLang.Var
 
 
 import           System.FilePath
@@ -36,6 +40,11 @@ parseFilePath filePath =
     parseRational fileName <$> readFile filePath
     where
         fileName = takeFileName filePath
+
+typeCheckFilePath :: FilePath -> IO (Either String (Program Rational))
+typeCheckFilePath filePath =
+    runSupplyT . parseProgram' fileName <$> readFile filePath where
+    fileName = takeFileName filePath
 
 discoverTests :: String -> FilePath -> (FilePath -> TestTree) -> IO TestTree
 discoverTests groupName testDir genTest = do

@@ -12,6 +12,8 @@ module TinyLang.Field.Typed.Parser
     , parseExpr
     , parseScopedProgram
     , parseProgram
+    , parseScopedProgram'
+    , parseProgram'
     ) where
 
 import           TinyLang.Prelude                 hiding (many, option, some,
@@ -57,11 +59,11 @@ parseExpr
 parseExpr = fmap _scopedValue . parseScopedExpr
 
 
-parseScopedProgram
+parseScopedProgram'
     :: forall f m. (MonadError String m, MonadSupply m, TextField f)
-    => String -> m (Scoped (Program f))
-parseScopedProgram str = do
-    progRaw <- parseString (pTop @f) "" str
+    => String -> String -> m (Scoped (Program f))
+parseScopedProgram' fileName str = do
+    progRaw <- parseString (pTop @f) fileName str
     Scoped scopeTotal progTyped <- typeProgram progRaw
     progTypedRen <- renameProgram progTyped
     let indicesFree = IntMap.keysSet . unEnv $ progFreeVarSigs progTypedRen
@@ -69,7 +71,17 @@ parseScopedProgram str = do
         scopeFree = Map.filter isFree scopeTotal
     return $ Scoped scopeFree progTypedRen
 
+parseProgram'
+    :: forall f m. (MonadError String m, MonadSupply m, TextField f)
+    => String -> String -> m (Program f)
+parseProgram' fileName = fmap _scopedValue . parseScopedProgram' fileName
+
+parseScopedProgram
+    :: forall f m. (MonadError String m, MonadSupply m, TextField f)
+    => String -> m (Scoped (Program f))
+parseScopedProgram = parseScopedProgram' ""
+
 parseProgram
     :: forall f m. (MonadError String m, MonadSupply m, TextField f)
     => String -> m (Program f)
-parseProgram = fmap _scopedValue . parseScopedProgram
+parseProgram = parseProgram' ""
