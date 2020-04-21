@@ -33,8 +33,8 @@ import           Test.Tasty.QuickCheck
 forgetProgramIDs :: Program f -> Program f
 forgetProgramIDs = fmap forgetStatementIDs
 
-forgetStatementsIDs :: Statements f -> Statements f
-forgetStatementsIDs = fmap forgetStatementIDs
+-- forgetStatementsIDs :: Statements f -> Statements f
+-- forgetStatementsIDs = fmap forgetStatementIDs
 
 forgetID :: UniVar f a -> UniVar f a
 forgetID (UniVar u v) = UniVar u $ Var (Unique 0) (_varName v)
@@ -67,23 +67,6 @@ prop_prog_roundtrip prog = do
         , " is not equal to "
         , progToString NoIDs prog'
         ]
-    
--- prop_Ftest :: (Eq f, TextField f) => SomeUniExpr f -> Either String ()
--- prop_Ftest (SomeOf uni expr) = do
---     SomeOf uni' expr' <- runSupplyT $ parseExpr (exprToString NoIDs expr)
---     let checkResult expr'' =
---             when (forgetIDs expr /= forgetIDs expr'') . Left $ concat
---                 [ exprToString NoIDs expr
---                 , " is not equal to "
---                 , exprToString NoIDs expr'
---                 ]
---         uniMismatch =
---             Left $ concat
---                 [ show uni
---                 , " is not equal to "
---                 , show uni'
---                 ]
---     withGeqUni uni uni' uniMismatch $ checkResult expr'
 
 data Binding f = forall a. Binding (UniVar f a) (Expr f a)
 
@@ -94,29 +77,28 @@ instance (Field f, Arbitrary f) => Arbitrary (Binding f) where
         withOneOfUnis $ \(_ :: Uni f a) ->
             Binding @f @a . unDefaultUniVar <$> arbitrary <*> arbitrary
 
--- prop_nestedELet
---     :: forall f. (Eq f, TextField f)
---     => [Binding f] -> SomeUniExpr f -> Either String ()
--- prop_nestedELet bindings body0 = prop_Ftest $ foldr bind body0 bindings where
---     bind :: Binding f -> SomeUniExpr f -> SomeUniExpr f
---     bind (Binding uniVar body) (SomeOf uni expr) =
---         SomeOf uni $ EStatement (ELet uniVar body) expr
+prop_nested_let
+    :: forall f. (Eq f, TextField f)
+    => [Binding f] -> Either String ()
+prop_nested_let bindings = prop_prog_roundtrip $ mkProgram $ mkStatements $ map bind bindings where
+    bind :: Binding f -> Statement f
+    bind (Binding uniVar body) = ELet uniVar body
 
 test_checkParseGeneric :: TestTree
 test_checkParseGeneric =
     testProperty "checkParseGeneric2" $
         withMaxSuccess 1000 . property $ prop_prog_roundtrip @JJ.F
 
--- test_checkParseNestedLets :: TestTree
--- test_checkParseNestedLets =
---     testProperty "checkParseNestedLets" $
---         withMaxSuccess 100 . property $ prop_nestedELet @F17
+test_checkParseNestedLets :: TestTree
+test_checkParseNestedLets =
+    testProperty "checkParseNestedLets" $
+        withMaxSuccess 100 . property $ prop_nested_let @F17
 
 test_printerParserRoundtrip :: TestTree
 test_printerParserRoundtrip =
     testGroup "printerParserRoundtrip"
         [ test_checkParseGeneric
-        -- , test_checkParseNestedLets
+        , test_checkParseNestedLets
         ]
 
 parsePrint :: String -> String
