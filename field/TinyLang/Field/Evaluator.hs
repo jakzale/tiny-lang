@@ -230,6 +230,9 @@ normStatements env0 = fmap mkStatements . go env0 . unStatements where
             -- Drop for loop with an empty body
             EFor _ _ _ stmts | [] <- unStatements stmts ->
                 go env rest
+            -- Drop EAssert True
+            EAssert (EConst (UniConst _ True)) ->
+                go env rest
             _  ->
                 (:) stmtN <$> go env rest
 
