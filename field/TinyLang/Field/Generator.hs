@@ -25,14 +25,11 @@ module TinyLang.Field.Generator where
 
 import           TinyLang.Prelude
 
-import           TinyLang.Field.Evaluator
 import           TinyLang.Field.Typed.Core
 
-import qualified Data.IntMap.Strict               as IntMap
 import           Data.Kind
 import qualified Data.Vector                      as Vector
 import           QuickCheck.GenT
-import           Quiet
 import           Test.QuickCheck                  (Arbitrary, Gen, arbitrary,
                                                    arbitrarySizedBoundedIntegral,
                                                    shrink, shrinkList)
@@ -424,34 +421,9 @@ defaultUniConst =
     where
         uni = knownUni @f @a
 
--- TODO:  Define a newtype wrapper for different shrinkers
-newtype TypePreserving a = TP { unTP :: a }
-    deriving (Generic, Eq, Functor, Foldable, Traversable)
-    deriving (Show) via (Quiet (TypePreserving a))
-
-newtype NonTypePreserving a = NTP { unNTP :: a }
-    deriving (Generic, Eq, Functor, Foldable, Traversable)
-    deriving (Show) via (Quiet (NonTypePreserving a))
-
-
--- | Type preserving generation and shrinking of programs
-instance (Field f, Arbitrary f) => Arbitrary (TypePreserving (Program f)) where
-    arbitrary = TP <$> arbitrary
-    shrink    = fmap TP . shrink . unTP
-
-instance (Field f, Arbitrary f) => Arbitrary (NonTypePreserving (Program f)) where
-    arbitrary = NTP <$> arbitrary
-    shrink    = undefined
-
 instance (Field f, Arbitrary f) => Arbitrary (Program f) where
     arbitrary = mkProgram <$> arbitrary
     shrink    = fmap mkProgram . shrink . unProgram
-
-progShrinkTP :: Program f -> [Program f]
-progShrinkTP = const []
-
-progShrinkNTP :: Program f -> [Program f]
-progShrinkNTP = const []
 
 instance (Field f, Arbitrary f) => Arbitrary (Statements f) where
     arbitrary = runSGen vars stmtsGen where
@@ -460,8 +432,22 @@ instance (Field f, Arbitrary f) => Arbitrary (Statements f) where
             adjustUniquesForVars vars
             boundedArbitraryStmts size
 
-    shrink = fmap mkStatements . shrinkList shrink . unStatements
+    shrink stmts = mkStatements <$> preservingShrink stmts' ++ nonPreservingShrink stmts' where
+        stmts' :: [Statement f]
+        stmts' = unStatements stmts
+        -- preserves the structure of statements
+        preservingShrink :: [Statement f] -> [[Statement f]]
+        preservingShrink = shrinkList'  shrink
+        -- does not preserve the structure of statements
+        nonPreservingShrink :: [Statement f] -> [[Statement f]]
+        nonPreservingShrink = shrinkList shrink
 
+-- A modified shrinkList, that preserves the structure of the underlying list
+shrinkList' :: (a -> [a]) -> [a] -> [[a]]
+shrinkList' shr = shrinkOne where
+  shrinkOne []     = []
+  shrinkOne (x:xs) = [ x':xs | x'  <- shr x ]
+                  ++ [ x:xs' | xs' <- shrinkOne xs ]
 
 instance (Field f, Arbitrary f) => Arbitrary (Statement f) where
     arbitrary = error "Panic: no implementation of 'arbitrary' for 'Statement'"
@@ -481,22 +467,22 @@ instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (Expr f a) where
         adjustUniquesForVars vars
         boundedArbitraryExpr vars size
 
---     -- TODO: also add @[SomeUniExpr f normed | normed /= expr, normed = normExpr env expr]@,
---     -- but do not forget to catch exceptions.
---     shrink (EConst uniConst) = EConst <$> shrink uniConst
---     shrink expr0             = EConst defaultUniConst : case expr0 of
---         EAppUnOp op e ->
---             withUnOpUnis op $ \uni _ ->
---             withKnownUni uni $
---                 EAppUnOp op <$> shrink e
---         EAppBinOp op e1 e2 ->
---             withBinOpUnis op $ \uni1 uni2 _ ->
---             withKnownUni uni1 $
---             withKnownUni uni2 $
---                 uncurry (EAppBinOp op) <$> shrink (e1, e2)
---         EIf e e1 e2 -> e1 : e2 : (uncurry (uncurry EIf) <$> shrink ((e, e1), e2))
---         EConst _ -> []
---         EVar _ -> []
+    -- TODO: also add @[SomeUniExpr f normed | normed /= expr, normed = normExpr env expr]@,
+    -- but do not forget to catch exceptions.
+    shrink (EConst uniConst) = EConst <$> shrink uniConst
+    shrink expr0             = EConst defaultUniConst : case expr0 of
+        EAppUnOp op e ->
+            withUnOpUnis op $ \uni _ ->
+            withKnownUni uni $
+                EAppUnOp op <$> shrink e
+        EAppBinOp op e1 e2 ->
+            withBinOpUnis op $ \uni1 uni2 _ ->
+            withKnownUni uni1 $
+            withKnownUni uni2 $
+                uncurry (EAppBinOp op) <$> shrink (e1, e2)
+        EIf e e1 e2 -> e1 : e2 : (uncurry (uncurry EIf) <$> shrink ((e, e1), e2))
+        EConst _ -> []
+        EVar _ -> []
 
 
 -- An instance that QuickCheck can use for tests.
