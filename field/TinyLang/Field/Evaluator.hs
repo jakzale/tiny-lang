@@ -164,11 +164,15 @@ evalStatementUni (EAssert expr) = do
     env <- get
     exprR <- evalExpr env expr
     unless exprR $ throwError $ AssertionFailedEvalError expr
-evalStatementUni (EFor (UniVar _ var) start end stmts) =
-    mapM_ iteration [start .. end] where
-    iteration i = do
-        modify' $ insertVar var (Some $ fromInteger i)
-        evalStatementsUni stmts
+evalStatementUni (EFor (UniVar _ var) start end stmts)
+    | start <= end = mapM_ iteration [start .. end]
+    | otherwise    = modify' $ insertVar var (Some $ fromInteger actualEnd)
+    where
+          iteration i = do
+              modify' $ insertVar var (Some $ fromInteger i)
+              evalStatementsUni stmts
+          actualEnd = max start end
+
 
 -- Note that we could use dependent maps, but we don't.
 -- | A recursive evaluator for expressions. Perhaps simplistic, but it works.
@@ -232,8 +236,9 @@ normStatements env0 = fmap mkStatements . go env0 . unStatements where
             ELet (UniVar _ var) (EConst uniConst) ->
                 go (insertVar var (Some uniConst) env)  rest
             -- Drop for loop with an empty body
-            EFor _ _ _ stmts | [] <- unStatements stmts ->
-                go env rest
+            EFor (UniVar _ var) start end stmts | [] <- unStatements stmts ->
+                let actualEnd = max start end in
+                go (insertVar var (Some $ fromInteger actualEnd) env) rest
             -- Drop EAssert True
             EAssert (EConst (UniConst _ True)) ->
                 go env rest
