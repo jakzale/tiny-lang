@@ -150,9 +150,9 @@ prop_rename_same_norm (ProgramWithEnv prog env) =
                                           , "differs from normalised original program"
                                           , norm
                                           , "for renamed program"
-                                          , progToString NoIDs prog'
+                                          , progToString WithIDs prog'
                                           , "for original program"
-                                          , progToString NoIDs prog
+                                          , progToString WithIDs prog
                                           ] where
         prog' = runSupply $ renameProgram prog
         norm  = either show (progToString NoIDs) $ normProgram env prog
