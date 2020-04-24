@@ -20,6 +20,7 @@ import           TinyLang.Field.Rename
 import           TinyLang.Field.Evaluator
 
 -- import           Data.Bifunctor
+import qualified Data.IntMap as IntMap
 import           System.FilePath
 import           Test.QuickCheck
 import           Test.Tasty
@@ -158,10 +159,35 @@ prop_rename_same_norm (ProgramWithEnv prog env) =
         norm  = either show (progToString NoIDs) $ normProgram env prog
         norm' = either show (progToString NoIDs) $ normProgram env prog'
 
+prop_rename_same_eval :: forall f. (Eq f, TextField f, AsInteger f)
+    => ProgramWithEnv f -> Either String ()
+prop_rename_same_eval (ProgramWithEnv prog env) =
+    when (result' /= result) . Left $ unlines [ "evaluation of renamed program"
+                                    , result'
+                                    , "differs from evaluation of original program"
+                                    , result
+                                    , "for final state of renamed program"
+                                    , show eval'
+                                    , "for final state of evaluated program"
+                                    , show eval
+                                    , "for renamed program"
+                                    , progToString WithIDs prog'
+                                    , "for original program"
+                                    , progToString WithIDs prog
+                                    ] where
+        prog'   = runSupply $ renameProgram prog
+        eval    = evalProgramUni env prog
+        eval'   = evalProgramUni env prog'
+        evalToS = either show (show . IntMap.elems . unEnv)
+        result  = evalToS eval
+        result' = evalToS eval'
+
 test_renaming :: TestTree
 test_renaming =
     testGroup "renaming" [ testProperty "is stable with respect to equality" $
                              withMaxSuccess 10000 . property $ prop_rename_same @F17
                          , testProperty "is stable with respect to normalisation" $
                              withMaxSuccess 1000 . property $ prop_rename_same_norm @F17
+                         , testProperty "is stable with respect to evaluation" $
+                             withMaxSuccess 1000 . property $ prop_rename_same_eval @F17
                          ]
