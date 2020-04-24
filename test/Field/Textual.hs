@@ -129,15 +129,39 @@ gen_test_roundtrip =
     discoverTests "roundtrip golden" testDir genTest
 
 
+prop_rename_same :: forall f. (TextField f)
+    => Program f -> Either String ()
+prop_rename_same prog =
+    when (norm' /= norm) . Left $ unlines [ "renamed program"
+                                          , norm'
+                                          , "is different from the original program"
+                                          , norm
+                                          ] where
+        prog' = runSupply $ renameProgram prog
+        norm  = progToString NoIDs $ prog
+        norm' = progToString NoIDs $ prog'
+
+
 prop_rename_same_norm :: forall f. (Eq f, TextField f, AsInteger f)
     => ProgramWithEnv f -> Either String ()
 prop_rename_same_norm (ProgramWithEnv prog env) =
-    when (norm /= norm') . Left $ show norm ++ " /= " ++ show norm' where
+    when (norm' /= norm) . Left $ unlines [ "renamed normalised program"
+                                          , norm'
+                                          , "differs from normalised original program"
+                                          , norm
+                                          , "for renamed program"
+                                          , progToString NoIDs prog'
+                                          , "for original program"
+                                          , progToString NoIDs prog
+                                          ] where
         prog' = runSupply $ renameProgram prog
         norm  = either show (progToString NoIDs) $ normProgram env prog
         norm' = either show (progToString NoIDs) $ normProgram env prog'
 
 test_renaming :: TestTree
 test_renaming =
-    testProperty "evaluation is stable with renaming" $
-        withMaxSuccess 1000 . property $ prop_rename_same_norm @F17
+    testGroup "renaming" [ testProperty "is stable with respect to equality" $
+                             withMaxSuccess 10000 . property $ prop_rename_same @F17
+                         , testProperty "is stable with respect to normalisation" $
+                             withMaxSuccess 1000 . property $ prop_rename_same_norm @F17
+                         ]
