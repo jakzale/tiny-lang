@@ -1,6 +1,5 @@
 module TinyLang.Field.Rename
     ( renameProgram
-    , renameExpr
     ) where
 
 import           TinyLang.Prelude
@@ -8,11 +7,6 @@ import           TinyLang.Prelude
 import           TinyLang.Field.Typed.Core
 
 import           Control.Monad.Cont
-
-renameExpr :: MonadSupply m => Expr f a -> m (Expr f a)
-renameExpr expr = do
-    exprSupplyFromAtLeastFree expr
-    runRenameM $ renameExprM expr
 
 renameProgram :: MonadSupply m => Program f -> m (Program f)
 renameProgram prog = do

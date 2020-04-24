@@ -8,9 +8,7 @@ For the new API please refer to "TinyLang.Field.Raw.Parser".
 
 -}
 module TinyLang.Field.Typed.Parser
-    ( parseScopedExpr
-    , parseExpr
-    , parseScopedProgram
+    ( parseScopedProgram
     , parseProgram
     , parseScopedProgram'
     , parseProgram'
@@ -36,29 +34,9 @@ instance TextField f => IsString (Scoped (Program f)) where
 instance TextField f => IsString (Program f) where
     fromString = _scopedValue <$> fromString
 
--- | Parse a @String@ and return @Either@ an error message or an @Expr@ of some type.
+-- | Parse a @String@ and return @Either@ an error message or an @Program@ of some type.
 -- If the result is an error, then return the latest 'Scope', otherwise return the 'Scope'
 -- consisting of all free variables of the expression.
-
-parseScopedExpr
-    :: forall f m. (MonadError String m, MonadSupply m, TextField f)
-    => String -> m (Scoped (SomeUniExpr f))
-parseScopedExpr str = do
-    exprRaw <- parseString (pTopExpr @f) "" str
-    Scoped scopeTotal (SomeOf uni exprTyped) <- typeCheck exprRaw
-    exprTypedRen <- renameExpr exprTyped
-    let indicesFree = IntMap.keysSet . unEnv $ exprFreeVarSigs exprTypedRen
-        isFree var = unUnique (_varUniq var) `IntSet.member` indicesFree
-        scopeFree = Map.filter isFree scopeTotal
-    return . Scoped scopeFree $ SomeOf uni exprTypedRen
-
--- | Parse a @String@ and return @Either@ an error message or an @Expr@ of some type.
-parseExpr
-    :: forall f m. (MonadError String m, MonadSupply m, TextField f)
-    => String -> m (SomeUniExpr f)
-parseExpr = fmap _scopedValue . parseScopedExpr
-
-
 parseScopedProgram'
     :: forall f m. (MonadError String m, MonadSupply m, TextField f)
     => String -> String -> m (Scoped (Program f))
@@ -81,6 +59,7 @@ parseScopedProgram
     => String -> m (Scoped (Program f))
 parseScopedProgram = parseScopedProgram' ""
 
+-- | Convenience version of @parseScopedProgram'@ with an empty file name.
 parseProgram
     :: forall f m. (MonadError String m, MonadSupply m, TextField f)
     => String -> m (Program f)

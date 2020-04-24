@@ -25,8 +25,10 @@ module TinyLang.Field.Generator where
 
 import           TinyLang.Prelude
 
+import           TinyLang.Field.Evaluator
 import           TinyLang.Field.Typed.Core
 
+import qualified Data.IntMap.Strict               as IntMap
 import           Data.Kind
 import qualified Data.Vector                      as Vector
 import           QuickCheck.GenT
@@ -519,3 +521,12 @@ genEnvFromVarSigs =
 --         -- TODO: test me.
 --         flip map (shrink someUniExpr) $ \shrunk@(SomeOf _ expr) ->
 --             ExprWithEnv shrunk . Env . IntMap.intersection vals . unEnv $ exprFreeVarSigs expr
+
+instance (Field f, Arbitrary f) => Arbitrary (ProgramWithEnv f) where
+    arbitrary = do
+        prog <- arbitrary
+        vals <- genEnvFromVarSigs . progFreeVarSigs $ prog
+        return $ ProgramWithEnv prog vals
+    shrink (ProgramWithEnv prog (Env vals)) =
+        flip map (shrink prog) $ \shrunk ->
+            ProgramWithEnv shrunk . Env . IntMap.intersection vals . unEnv $ progFreeVarSigs prog

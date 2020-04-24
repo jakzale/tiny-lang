@@ -14,20 +14,21 @@ module TinyLang.Field.Evaluator
     , unpackPositiveDesc
     , packPositiveAsc
     , packPositiveDesc
-    , ExprWithEnv (..)
+    , ProgramWithEnv (..)
     , evalUnOp
     , evalBinOp
     , evalExprUni
     , evalStatementUni
     , evalStatementsUni
     , evalProgramUni
+    , evalProgWithEnv
     , evalExpr
-    , evalExprWithEnv
     , denoteUniConst
     , denoteSomeUniConst
     , denoteExpr
     , normExpr
     , normStatement
+    , normProgram
     , instStatement
     , instExpr
     ) where
@@ -194,16 +195,15 @@ evalExpr :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
     => Env (SomeUniConst f) -> Expr f a -> m a
 evalExpr env = fmap _uniConstVal . evalExprUni env
 
--- | A type of expressions together with environments
-data ExprWithEnv f
-    = ExprWithEnv (SomeUniExpr f) (Env (SomeUniConst f))
+data ProgramWithEnv f
+    = ProgramWithEnv (Program f) (Env (SomeUniConst f))
       deriving (Show)
 
--- | Evaluate an expression in a given environment
-evalExprWithEnv :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
-    => ExprWithEnv f -> m (SomeUniConst f)
-evalExprWithEnv (ExprWithEnv (SomeOf uni expr) env) =
-    Some . UniConst uni <$> evalExpr env expr
+-- | Evaluate a program in a given environment
+evalProgWithEnv :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
+    => ProgramWithEnv f -> m (Env (SomeUniConst f))
+evalProgWithEnv (ProgramWithEnv prog env) = evalProgramUni env prog
+
 
 denoteUniConst :: Field f => UniConst f a -> f
 denoteUniConst (UniConst Bool   b) = toField b
@@ -216,6 +216,10 @@ denoteSomeUniConst = forget denoteUniConst
 denoteExpr :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
     => Env (SomeUniConst f) -> Expr f a -> m f
 denoteExpr env = fmap denoteUniConst . evalExprUni env
+
+normProgram :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
+    => Env (SomeUniConst f) -> Program f -> m (Program f)
+normProgram env = fmap mkProgram . normStatements env . unProgram
 
 normStatements :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
     => Env (SomeUniConst f) -> Statements f -> m (Statements f)

@@ -16,7 +16,10 @@ import           TinyLang.Field.Printer
 import           TinyLang.Field.Typed.Core
 import           TinyLang.Field.Typed.Parser
 import           TinyLang.Prelude
+import           TinyLang.Field.Rename
+import           TinyLang.Field.Evaluator
 
+-- import           Data.Bifunctor
 import           System.FilePath
 import           Test.QuickCheck
 import           Test.Tasty
@@ -106,6 +109,7 @@ test_textual :: TestTree
 test_textual =
     testGroup "textual"
         [ test_printerParserRoundtrip
+       , test_renaming
         ]
 
 parsePrintFilePath :: FilePath -> IO String
@@ -123,3 +127,17 @@ genTest filePath = goldenVsString name golden action
 gen_test_roundtrip :: IO TestTree
 gen_test_roundtrip =
     discoverTests "roundtrip golden" testDir genTest
+
+
+prop_rename_same_norm :: forall f. (Eq f, TextField f, AsInteger f)
+    => ProgramWithEnv f -> Either String ()
+prop_rename_same_norm (ProgramWithEnv prog env) =
+    when (norm /= norm') . Left $ show norm ++ " /= " ++ show norm' where
+        prog' = runSupply $ renameProgram prog
+        norm  = either show (progToString NoIDs) $ normProgram env prog
+        norm' = either show (progToString NoIDs) $ normProgram env prog'
+
+test_renaming :: TestTree
+test_renaming =
+    testProperty "evaluation is stable with renaming" $
+        withMaxSuccess 1000 . property $ prop_rename_same_norm @F17
