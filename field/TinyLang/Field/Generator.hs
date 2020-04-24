@@ -487,41 +487,15 @@ instance (KnownUni f a, Field f, Arbitrary f) => Arbitrary (Expr f a) where
         EVar _ -> []
 
 
--- An instance that QuickCheck can use for tests.
--- TODO:  Uncomment
--- instance (Field f, Arbitrary f) => Arbitrary (SomeUniExpr f) where
---     arbitrary = withOneOfUnis $ \uni -> SomeOf uni <$> arbitrary
-
---     shrink (SomeOf uni0 expr) =
---         map (SomeOf uni0) (withKnownUni uni0 $ shrink expr) ++ case expr of
---             EAppUnOp op e -> withUnOpUnis op $ \argUni _ -> [SomeOf argUni e]
---             EAppBinOp op e1 e2 ->
---                 withBinOpUnis op $ \uni1 uni2 _ ->
---                     [SomeOf uni1 e1, SomeOf uni2 e2]
---             EIf e _ _ -> [SomeOf Bool e]
---             EConst _ -> []
---             EVar _ -> []
-
 genEnvFromVarSigs :: (Field f, Arbitrary f) => Env (VarSig f) -> Gen (Env (SomeUniConst f))
 genEnvFromVarSigs =
     traverse $ \(VarSig _ (uni :: Uni f a)) ->
         Some <$> withKnownUni uni (arbitrary :: Gen (UniConst f a))
 
--- | Generate a random ExprWithEnv.  Note that you can say things like
--- "generate (resize 1000 arbitrary :: Gen (ExprWithEnv F17))" to get
--- bigger expressions.  There's no means provided to generate things
--- over non-default sets of variables, but this would be easy to do.
--- TODO:  Uncomment
--- instance (Field f, Arbitrary f) => Arbitrary (ExprWithEnv f) where
---     arbitrary = do
---         someUniExpr <- arbitrary
---         vals <- forget (genEnvFromVarSigs . exprFreeVarSigs) someUniExpr
---         return $ ExprWithEnv someUniExpr vals
---     shrink (ExprWithEnv someUniExpr (Env vals)) =
---         -- TODO: test me.
---         flip map (shrink someUniExpr) $ \shrunk@(SomeOf _ expr) ->
---             ExprWithEnv shrunk . Env . IntMap.intersection vals . unEnv $ exprFreeVarSigs expr
-
+-- | Generate a random ProgramWithEnv.  Note that you can say things like
+-- "generate (resize 1000 arbitrary :: Gen (ProgramWithEnv F17))" to get bigger
+-- expressions. There's no means provided to generate things over non-default
+-- sets of variables, but this would be easy to do.
 instance (Field f, Arbitrary f) => Arbitrary (ProgramWithEnv f) where
     arbitrary = do
         prog <- arbitrary
