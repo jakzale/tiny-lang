@@ -28,6 +28,7 @@ module TinyLang.Field.Evaluator
     , denoteExpr
     , normExpr
     , normStatement
+    , normStatements
     , normProgram
     , instStatement
     , instExpr

@@ -434,15 +434,35 @@ instance (Field f, Arbitrary f) => Arbitrary (Statements f) where
             adjustUniquesForVars vars
             boundedArbitraryStmts size
 
-    shrink stmts = mkStatements <$> preservingShrink stmts' ++ nonPreservingShrink stmts' where
+    shrink stmts = mkStatements <$> concat [shrunkEmpty, shrunkNorm, shrunkPreserving, shrunkNonPreserving] where
         stmts' :: [Statement f]
         stmts' = unStatements stmts
+
+        shrunkEmpty :: [[Statement f]]
+        shrunkEmpty = case stmts' of
+            [] -> []
+            _  -> [[]]
+
+        -- normalisation steps when shrinking
+        shrunkNorm :: [[Statement f]]
+        shrunkNorm = maybe [] pure  $ norm stmts'
+
+        -- small step "normaliser"
+        norm :: [Statement f] -> Maybe [Statement f]
+        norm ((EFor forVar start end body) : restStmts) | [] <- unStatements body =
+                pure $ ELet forVar (EConst (fromInteger (max start end))) : restStmts
+        norm ((EAssert (EConst (UniConst _ True))) : restStmts) =
+                pure $ restStmts
+        norm (stmt : restStmts) = (stmt :) <$> norm restStmts
+        -- no normalisations performed, abort
+        norm [] = Nothing
+
         -- preserves the structure of statements
-        preservingShrink :: [Statement f] -> [[Statement f]]
-        preservingShrink = shrinkList'  shrink
+        shrunkPreserving :: [[Statement f]]
+        shrunkPreserving = shrinkList' shrink stmts'
         -- does not preserve the structure of statements
-        nonPreservingShrink :: [Statement f] -> [[Statement f]]
-        nonPreservingShrink = shrinkList shrink
+        shrunkNonPreserving :: [[Statement f]]
+        shrunkNonPreserving = shrinkList shrink stmts'
 
 -- A modified shrinkList, that preserves the structure of the underlying list
 shrinkList' :: (a -> [a]) -> [a] -> [[a]]
