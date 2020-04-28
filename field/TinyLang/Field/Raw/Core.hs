@@ -7,10 +7,8 @@ module TinyLang.Field.Raw.Core
     , BinOp(..)
     , UnOp(..)
     , Statement(..)
-    , Program
+    , Program(..)
     , Statements
-    , mkProgram
-    , unProgram
     , mkStatements
     , unStatements
     , RawProgram
@@ -50,14 +48,10 @@ statement level; the operations acting on statement level are not necessarily
 mappable over a list of statements.
 -}
 
-type Program v f    = C.Program    (Statement v f)
+data Program v f = Program { unDeclarations :: [v]
+                           , unProgram      :: Statements v f
+                           }
 type Statements v f = C.Statements (Statement v f)
-
-mkProgram :: Statements v f -> Program v f
-mkProgram = C.Program
-
-unProgram :: Program v f -> Statements v f
-unProgram = C.unProgram
 
 mkStatements :: [Statement v f] -> Statements v f
 mkStatements = C.Statements
