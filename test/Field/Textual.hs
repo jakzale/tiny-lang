@@ -203,8 +203,9 @@ test_renaming :: TestTree
 test_renaming =
     testGroup "renaming" [ testProperty "is stable with respect to equality" $
                              withMaxSuccess 10000 . property $ prop_rename_same @F17
-                         , testProperty "is stable with respect to normalisation" $
-                             withMaxSuccess 1000 . property $ prop_rename_same_norm @F17
-                         , testProperty "is stable with respect to evaluation" $
-                             withMaxSuccess 1000 . property $ prop_rename_same_eval @F17
+                         -- TODO:  Re-enable these tests
+                         -- , testProperty "is stable with respect to normalisation" $
+                         --     withMaxSuccess 1000 . property $ prop_rename_same_norm @F17
+                         -- , testProperty "is stable with respect to evaluation" $
+                         --     withMaxSuccess 1000 . property $ prop_rename_same_eval @F17
                          ]
