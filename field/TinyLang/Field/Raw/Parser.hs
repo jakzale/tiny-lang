@@ -151,6 +151,25 @@ statements ::=
     (statement ";")*
 @
 
+== Program
+
+@
+program ::=
+  declarations statements
+@
+
+== Variable declarations
+
+  We declare input or external variables using the @declare@ keyword.
+
+@
+declarations ::=
+    (declaration ";")*
+
+declaration ::=
+    "declare" var
+@
+
 == Operator Precedence
 
 We use the following operator precedence:
@@ -226,6 +245,7 @@ keywords =
     , "for", "do", "end"
     , "if", "then", "else"
     , "bool", "field", "vector"
+    , "declare"
     ]
 
 isKeyword :: String -> Bool
@@ -381,8 +401,15 @@ pStatements =
     , mkStatements <$> many (pStatement <* symbol ";")
     ]
 
+-- Parsing Declarations
+pDeclaration :: ParserT m Var
+pDeclaration = keyword "declare" *> pVar
+
+pDeclarations :: ParserT m [Var]
+pDeclarations = many (pDeclaration <* symbol ";")
+
 pProgram :: TextField f => ParserT m (RawProgram f)
-pProgram = mkProgram <$> pStatements
+pProgram = Program <$> pDeclarations <*> pStatements
 
 pTop :: TextField f => ParserT m (RawProgram f)
 pTop = top pProgram
