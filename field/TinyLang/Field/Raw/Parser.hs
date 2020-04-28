@@ -143,7 +143,26 @@ statement ::=
     "for" var "=" int-literal "to" int-literal "do" statements "end"
 
 statements ::=
-    (statement (";" statement)*)?
+    (statement ";")*
+@
+
+== Program
+
+@
+program ::=
+  declarations statements
+@
+
+== Variable declarations
+
+  We declare input or external variables using the @ext@ keyword.
+
+@
+declarations ::=
+    (declaration ";")*
+
+declaration ::=
+    "ext" var
 @
 
 == Operator Precedence
@@ -220,6 +239,7 @@ keywords =
     , "for", "do", "end"
     , "if", "then", "else"
     , "bool", "field", "vector"
+    , "ext"
     ]
 
 isKeyword :: String -> Bool
@@ -375,8 +395,15 @@ pStatements =
     , Statements <$> many (pStatement <* symbol ";")
     ]
 
+-- Parsing Declarations
+pDeclaration :: ParserT m Var
+pDeclaration = keyword "ext" *> pVar
+
+pDeclarations :: ParserT m [Var]
+pDeclarations = many (pDeclaration <* symbol ";")
+
 pProgram :: Field f => ParserT m (RawProgram f)
-pProgram = Program <$> pStatements
+pProgram = Program <$> pDeclarations <*> pStatements
 
 pTop :: Field f => ParserT m (RawProgram f)
 pTop = top pProgram

@@ -50,7 +50,9 @@ statement level; the operations acting on statement level are not necessarily
 mappable over a list of statements.
 -}
 
-type Program v f    = C.Program    (Statement v f)
+data Program v f = Program { unDeclarations :: [v]
+                           , unProgram      :: Statements v f
+                           }
 type Statements v f = C.Statements (Statement v f)
 
 data Statement v f

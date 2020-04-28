@@ -38,6 +38,7 @@ module TinyLang.Field.Typed.TypeChecker
 import           TinyLang.Prelude           hiding (TypeError)
 
 import           Data.Field
+import           TinyLang.Environment
 import           TinyLang.Field.Existential
 import qualified TinyLang.Field.Raw.Core    as R
 import qualified TinyLang.Field.Typed.Core  as T
@@ -78,6 +79,32 @@ newtype TypeCheckerT e (m :: Type -> Type) a =
                      , MonadSupply
                      , MonadScope
                      )
+
+newtype TypeCheckerT' e (m :: Type -> Type) a =
+    TypeChecker' { runTypeCheckerT' :: (ExceptT e (StateT (Scope, Env T.Var) (SupplyT m))) a }
+    deriving newtype ( Monad
+                     , Functor
+                     , Applicative
+                     , MonadError e
+                     )
+
+getScope :: TypeCheckerT' e m Scope
+getScope = undefined
+
+putScope :: Scope -> TypeCheckerT' e m ()
+putScope = undefined
+
+modifyScope :: (Scope -> Scope) -> TypeCheckerT' e m ()
+modifyScope = undefined
+
+getEnv :: TypeCheckerT' e m (Env T.Var)
+getEnv = undefined
+
+putEnv :: Env T.Var -> TypeCheckerT' e m ()
+putEnv = undefined
+
+modifyEnv :: (Env T.Var -> Env T.Var) -> TypeCheckerT' e m ()
+modifyEnv = undefined
 
 {-| A simple type checker
 -}
