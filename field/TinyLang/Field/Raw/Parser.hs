@@ -148,7 +148,7 @@ statement ::=
     "for" var "=" int-literal "to" int-literal "do" statements "end"
 
 statements ::=
-    (statement (";" statement)*)?
+    (statement ";")*
 @
 
 == Operator Precedence
