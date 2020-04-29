@@ -146,18 +146,28 @@ prop_rename_same prog =
 prop_rename_same_norm :: forall f. (Eq f, TextField f, AsInteger f)
     => ProgramWithEnv f -> Either String ()
 prop_rename_same_norm (ProgramWithEnv prog env) =
-    when (norm' /= norm) . Left $ unlines [ "renamed normalised program"
-                                          , norm'
-                                          , "differs from normalised original program"
-                                          , norm
-                                          , "for renamed program"
-                                          , progToString WithIDs prog'
-                                          , "for original program"
-                                          , progToString WithIDs prog
-                                          ] where
-        prog' = runSupply $ renameProgram prog
-        norm  = either show (progToString NoIDs) $ normProgram env prog
-        norm' = either show (progToString NoIDs) $ normProgram env prog'
+    when (result' /= result) . Left $ unlines message where
+        message = [ "ERROR"
+                  , ind $ "normalisation of the renamed program did not match the normalisation of the original program"
+                  , "INITIAL STATE"
+                  , ind $ show env
+                  , "ORIGINAL PROGRAM"
+                  , ind $ progToString WithIDs prog
+                  , "ORIGINAL PROGRAM NORMALISED"
+                  , ind $ showNrm norm
+                  , "RENAMED PROGRAM"
+                  , ind $ progToString WithIDs prog'
+                  , "RENAMED PROGRAM NORMALISED"
+                  , ind $ showNrm norm'
+                  ]
+        ind     = indent "  "
+        prog'   = runSupply $ renameProgram prog
+        norm    = normProgram env prog
+        norm'   = normProgram env prog'
+        evalToS = either show (progToString NoIDs)
+        showNrm = either show (progToString WithIDs)
+        result  = evalToS norm
+        result' = evalToS norm'
 
 indent :: String -> String -> String
 indent prefix = unlines . map (prefix++) . lines
@@ -170,7 +180,6 @@ prop_rename_same_eval (ProgramWithEnv prog env) =
     when (result' /= result) . Left $ unlines message where
         message = [ "ERROR"
                   , ind $ "evaluation of the renamed program did not match the evaluation of the original program"
-                  , ""
                   , "INITIAL STATE"
                   , ind $ show env
                   , "ORIGINAL PROGRAM"
@@ -194,17 +203,8 @@ test_renaming :: TestTree
 test_renaming =
     testGroup "renaming" [ testProperty "is stable with respect to equality" $
                              withMaxSuccess 10000 . property $ prop_rename_same @F17
-                         -- , testProperty "is stable with respect to normalisation" $
-                         --     withMaxSuccess 1000 . property $ prop_rename_same_norm @F17
+                         , testProperty "is stable with respect to normalisation" $
+                             withMaxSuccess 1000 . property $ prop_rename_same_norm @F17
                          , testProperty "is stable with respect to evaluation" $
                              withMaxSuccess 1000 . property $ prop_rename_same_eval @F17
-                         -- , testProperty "ProgramWithEnv is closed" $
-                         --     withMaxSuccess 100 . property $ prop_progwithenv_closed @F17
                          ]
--- prop_progwithenv_closed_shrink :: ProgramWithEnv f -> Bool
-
-
-prop_progwithenv_closed :: ProgramWithEnv f -> Bool
-prop_progwithenv_closed (ProgramWithEnv prog env) =  envUniq == envUniq' where
-    envUniq  = IntMap.keys . unEnv $ env
-    envUniq' = IntMap.keys . unEnv . progFreeVarSigs $ prog
