@@ -525,4 +525,4 @@ instance (Field f, Arbitrary f) => Arbitrary (ProgramWithEnv f) where
     shrink (ProgramWithEnv prog (Env vals)) =
         -- TODO:  Check why is this keeping extra variable bindings in the env
         flip map (shrink prog) $ \shrunk ->
-            ProgramWithEnv shrunk . Env . IntMap.intersection vals . unEnv $ progFreeVarSigs prog
+            ProgramWithEnv shrunk . Env . IntMap.intersection vals . unEnv $ progFreeVarSigs shrunk
