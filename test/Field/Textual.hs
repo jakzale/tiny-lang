@@ -159,22 +159,30 @@ prop_rename_same_norm (ProgramWithEnv prog env) =
         norm  = either show (progToString NoIDs) $ normProgram env prog
         norm' = either show (progToString NoIDs) $ normProgram env prog'
 
+indent :: String -> String -> String
+indent prefix = unlines . map (prefix++) . lines
+
+-- Good failing test case:
+-- stack test --ta --quickcheck-replay=826406
 prop_rename_same_eval :: forall f. (Eq f, TextField f, AsInteger f)
     => ProgramWithEnv f -> Either String ()
 prop_rename_same_eval (ProgramWithEnv prog env) =
-    when (result' /= result) . Left $ unlines [ "evaluation of renamed program"
-                                    , result'
-                                    , "differs from evaluation of original program"
-                                    , result
-                                    , "for final state of renamed program"
-                                    , show eval'
-                                    , "for final state of evaluated program"
-                                    , show eval
-                                    , "for renamed program"
-                                    , progToString WithIDs prog'
-                                    , "for original program"
-                                    , progToString WithIDs prog
-                                    ] where
+    when (result' /= result) . Left $ unlines message where
+        message = [ "ERROR"
+                  , ind $ "evaluation of the renamed program did not match the evaluation of the original program"
+                  , ""
+                  , "INITIAL STATE"
+                  , ind $ show env
+                  , "ORIGINAL PROGRAM"
+                  , ind $ progToString WithIDs prog
+                  , "ORIGINAL PROGRAM FINAL STATE"
+                  , ind $ show eval
+                  , "RENAMED PROGRAM"
+                  , ind $ progToString WithIDs prog'
+                  , "RENAMED PROGRAM FINAL STATE"
+                  , ind $ show eval'
+                  ]
+        ind     = indent "  "
         prog'   = runSupply $ renameProgram prog
         eval    = evalProgramUni env prog
         eval'   = evalProgramUni env prog'
@@ -190,4 +198,13 @@ test_renaming =
                          --     withMaxSuccess 1000 . property $ prop_rename_same_norm @F17
                          , testProperty "is stable with respect to evaluation" $
                              withMaxSuccess 1000 . property $ prop_rename_same_eval @F17
+                         -- , testProperty "ProgramWithEnv is closed" $
+                         --     withMaxSuccess 100 . property $ prop_progwithenv_closed @F17
                          ]
+-- prop_progwithenv_closed_shrink :: ProgramWithEnv f -> Bool
+
+
+prop_progwithenv_closed :: ProgramWithEnv f -> Bool
+prop_progwithenv_closed (ProgramWithEnv prog env) =  envUniq == envUniq' where
+    envUniq  = IntMap.keys . unEnv $ env
+    envUniq' = IntMap.keys . unEnv . progFreeVarSigs $ prog
