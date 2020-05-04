@@ -23,7 +23,7 @@ test_rename :: TestTree
 test_rename = testGroup "renaming unit tests"
     [   testFreeVars
     ] where
-        testFreeVars = testCase "free variables 1" $ freeVars @?= Env mempty
-        prog :: Program (AField Rational) = [QQ.i| for x = 0 to 0 do end; assert x == 1; |]
-        freeVars = progFreeVarSigs prog
+        testFreeVars = testCase "free variables 1" $ 
+            Env mempty @=? freeVars "for x = 0 to 0 do end; assert x == 1;" 
+        freeVars = progFreeVarSigs @(AField Rational)
 
