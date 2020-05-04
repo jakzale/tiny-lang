@@ -263,10 +263,13 @@ stmtVarSigs' sigs (ELet uniVar def) = ScopedVarSigs free $ insertUnique uniq sig
     sig = VarSig name uni
     ScopedVarSigs free bound = exprVarSigs' sigs def
 stmtVarSigs' sigs (EAssert expr) = exprVarSigs' sigs expr
-stmtVarSigs' sigs (EFor uniVar _ _ stmts) = ScopedVarSigs free $ insertUnique uniq sig bound where
-    UniVar uni (Var uniq name) = uniVar
-    sig = VarSig name uni
-    ScopedVarSigs free bound = foldl' stmtVarSigs' sigs (C.unStatements stmts)
+-- NOTE:  uniVar is bound in stmts
+stmtVarSigs' sigs (EFor uniVar _ _ stmts) =
+    foldl' stmtVarSigs' sigs' (C.unStatements stmts) where
+        sigs' = ScopedVarSigs free $ insertUnique uniq sig bound
+        sig   = VarSig name uni
+        UniVar uni (Var uniq name) = uniVar
+        ScopedVarSigs free bound   = sigs
 
 exprVarSigs' :: ScopedVarSigs f -> Expr f a -> ScopedVarSigs f
 exprVarSigs' sigs (EConst _) = sigs
