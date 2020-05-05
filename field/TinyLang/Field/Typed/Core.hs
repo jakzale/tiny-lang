@@ -272,7 +272,11 @@ isTracked (UniVar uni (Var uniq name)) = do
                 case lookupUnique uniq env of
                     Just x'
                         | x' == sig -> True
-                        | otherwise -> error $ concat ["panic: mismatch: '", show sig, "' vs '", show x', "'"]
+                        | otherwise -> error $ concat [ "panic: mismatch: '"
+                                                      , show sig
+                                                      , "' vs '"
+                                                      , show x'
+                                                      , "'"]
                     Nothing -> False
 
 stmtVS :: Statement f -> State (ScopedVarSigs f) ()
