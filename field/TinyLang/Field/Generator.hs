@@ -472,6 +472,10 @@ shrinkList' shr = shrinkOne where
   shrinkOne (x:xs) = [ x':xs | x'  <- shr x ]
                   ++ [ x:xs' | xs' <- shrinkOne xs ]
 
+-- We do not provide an implementation for 'arbitrary' (because we don't need it and it'd be
+-- annoying to write it), but we still want to make provide an 'Arbitrary' instance, so that
+-- 'shrink' can be used in the 'Arbitrary' instance of 'Statments' (a separately provided
+-- 'shrinkStatement' could also work).
 instance (Field f, Arbitrary f) => Arbitrary (Statement f) where
     arbitrary = error "Panic: no implementation of 'arbitrary' for 'Statement'"
 
