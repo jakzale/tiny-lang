@@ -32,10 +32,11 @@ test_free_variables = testGroup "free variables"
             emptyEnv @=? freeVars "let x = 1; assert x == 1;" 
         ]
     ,   testGroup "assert statement"
-        [
+        [ testCase "should make variable free" $
+            assertNonEmptyEnv $ freeVars "assert ?x;"
         ]
     ,   testGroup "for loop"
-        [ testCase "should not bind variable before" $ 
+        [ testCase "should not bind variable before" $
             assertNonEmptyEnv $ freeVars "assert x == 1; for x = 0 to 0 do end;" 
         , testCase "shoud bind its variable in body" $
             emptyEnv @=? freeVars "for x = 0 to 0 do assert x == 0; end;" 
