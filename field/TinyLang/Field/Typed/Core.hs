@@ -248,6 +248,7 @@ data ScopedVarSigs f = ScopedVarSigs
     , _scopedVarSigsBound :: Env (VarSig f)
     } deriving (Show)
 
+-- | Add variable to the set of bound variables
 bindVar :: UniVar f a -> State (ScopedVarSigs f) ()
 bindVar (UniVar uni (Var uniq name)) = do
     ScopedVarSigs free bound <- get
@@ -255,6 +256,7 @@ bindVar (UniVar uni (Var uniq name)) = do
         bound' = insertUnique uniq sig bound
     put $ ScopedVarSigs free bound'
 
+-- | Add variable to the set of free variables
 freeVar :: UniVar f a -> State (ScopedVarSigs f) ()
 freeVar (UniVar uni (Var uniq name)) = do
     ScopedVarSigs free bound <- get
@@ -262,6 +264,7 @@ freeVar (UniVar uni (Var uniq name)) = do
         free' = insertUnique uniq sig free
     put $ ScopedVarSigs free' bound 
 
+-- | Check if variable is tracked in bound or free variables
 isTracked :: UniVar f a -> State (ScopedVarSigs f) Bool
 isTracked (UniVar uni (Var uniq name)) = do
     ScopedVarSigs free bound <- get
@@ -279,6 +282,7 @@ isTracked (UniVar uni (Var uniq name)) = do
                                                       , "'"]
                     Nothing -> False
 
+-- | Gather VarSigs for a statement
 stmtVS :: Statement f -> State (ScopedVarSigs f) ()
 stmtVS (EAssert expr)    = exprVS expr
 stmtVS (ELet uniVar def) = do
@@ -288,6 +292,7 @@ stmtVS (EFor uniVar _ _ stmts) = do
     bindVar uniVar
     traverse_ stmtVS stmts
 
+-- | Gather VarSigs for an expression
 exprVS :: Expr f a -> State (ScopedVarSigs f) ()
 exprVS (EConst _) = pure ()
 exprVS (EVar uniVar) = do
@@ -302,6 +307,7 @@ exprVS (EIf b x y) = do
     exprVS x
     exprVS y
 
+-- | Collect all bindings
 execSVS :: State (ScopedVarSigs f) () -> ScopedVarSigs f
 execSVS s = execState s $ ScopedVarSigs mempty mempty
 
