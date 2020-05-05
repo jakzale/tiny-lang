@@ -269,18 +269,18 @@ isTracked :: UniVar f a -> State (ScopedVarSigs f) Bool
 isTracked (UniVar uni (Var uniq name)) = do
     ScopedVarSigs free bound <- get
     pure $ isTrackedIn free || isTrackedIn bound
-        where
-            sig = VarSig name uni
-            isTrackedIn env =
-                case lookupUnique uniq env of
-                    Just x'
-                        | x' == sig -> True
-                        | otherwise -> error $ concat [ "panic: mismatch: '"
-                                                      , show sig
-                                                      , "' vs '"
-                                                      , show x'
-                                                      , "'"]
-                    Nothing -> False
+    where
+        sig = VarSig name uni
+        isTrackedIn env =
+            case lookupUnique uniq env of
+                Just x'
+                    | x' == sig -> True
+                    | otherwise -> error $ concat [ "panic: mismatch: '"
+                                                  , show sig
+                                                  , "' vs '"
+                                                  , show x'
+                                                  , "'"]
+                Nothing -> False
 
 -- | Gather VarSigs for a statement
 stmtVS :: Statement f -> State (ScopedVarSigs f) ()
