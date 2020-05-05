@@ -25,11 +25,11 @@ test_free_variables :: TestTree
 test_free_variables = testGroup "free variables"
     [   testGroup "let binding"
         [ testCase "should not bind variable before" $
-            assertNonEmptyEnv $ freeVars "assert x == 1; let x = 1;" 
+            assertNonEmptyEnv $ freeVars "assert x == 1; let x = 1;"
         , testCase "should not bind variable in the definition" $
-            assertNonEmptyEnv $ freeVars "let x = x;" 
+            assertNonEmptyEnv $ freeVars "let x = x;"
         , testCase "shoud bind its variable after" $
-            emptyEnv @=? freeVars "let x = 1; assert x == 1;" 
+            emptyEnv @=? freeVars "let x = 1; assert x == 1;"
         ]
     ,   testGroup "assert statement"
         [ testCase "should make variable free" $
@@ -37,16 +37,17 @@ test_free_variables = testGroup "free variables"
         ]
     ,   testGroup "for loop"
         [ testCase "should not bind variable before" $
-            assertNonEmptyEnv $ freeVars "assert x == 1; for x = 0 to 0 do end;" 
+            assertNonEmptyEnv $ freeVars "assert x == 1; for x = 0 to 0 do end;"
         , testCase "shoud bind its variable in body" $
-            emptyEnv @=? freeVars "for x = 0 to 0 do assert x == 0; end;" 
-        , testCase "should bind its variable after body" $ 
-            emptyEnv @=? freeVars "for x = 0 to 0 do end; assert x == 1;" 
+            emptyEnv @=? freeVars "for x = 0 to 0 do assert x == 0; end;"
+        , testCase "should bind its variable after body" $
+            emptyEnv @=? freeVars "for x = 0 to 0 do end; assert x == 1;"
         ]
     ] where
         freeVars = progFreeVarSigs @(AField Rational)
         emptyEnv = Env mempty
         assertNonEmptyEnv = assertBool "set of free vars should not be empty" . (emptyEnv /=)
 
+-- TODO:  Add more tests
 test_renaming :: TestTree
 test_renaming = testGroup "renamings" []
