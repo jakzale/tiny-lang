@@ -42,6 +42,7 @@ import           TinyLang.Prelude
 
 import qualified Data.String.Interpolate.IsString as QQ
 import qualified Data.Vector                      as Vector
+import           Data.Kind (Type)
 
 data TypeMismatch f = forall a b. TypeMismatch (UniVar f a) (UniConst f b)
 
@@ -58,6 +59,16 @@ data EvalError f
     deriving (Show)
 
 type MonadEvalError f m = MonadError (EvalError f) m
+
+-- | Evaluator Transformer Stack
+newtype EvalT e s (m :: Type -> Type) a =
+    EvalT { runEvalT :: ExceptT e (StateT s m) a }
+    deriving newtype ( Monad
+                     , Functor
+                     , Applicative
+                     , MonadError e
+                     , MonadState s
+                     )
 
 instance TextField f => Show (TypeMismatch f) where
     show (TypeMismatch (UniVar uniExp var) uniConstAct) =
