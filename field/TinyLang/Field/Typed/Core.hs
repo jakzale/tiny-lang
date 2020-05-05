@@ -29,14 +29,14 @@ module TinyLang.Field.Typed.Core
     , withKnownUni
     , VarSig (..)
     , ScopedVarSigs (..)
-    , stmtVarSigs
-    , stmtFreeVarSigs
-    , stmtsFreeVarSigs
+    -- , stmtVarSigs
+    -- , stmtFreeVarSigs
+    -- , stmtsFreeVarSigs
     , progFreeVarSigs
-    , exprVarSigs
-    , exprFreeVarSigs
-    , exprSupplyFromAtLeastFree
-    , stmtSupplyFromAtLeastFree
+    -- , exprVarSigs
+    -- , exprFreeVarSigs
+    -- , exprSupplyFromAtLeastFree
+    -- , stmtSupplyFromAtLeastFree
     , stmtsSupplyFromAtLeastFree
     , uniOfExpr
     ) where
@@ -248,67 +248,69 @@ data ScopedVarSigs f = ScopedVarSigs
     , _scopedVarSigsBound :: Env (VarSig f)
     } deriving (Show)
 
-isTracked :: (Eq a, Show a) => Unique -> a -> Env a -> Bool
-isTracked uniq x env =
-    case lookupUnique uniq env of
-        Just x'
-            | x == x'   -> True
-            | otherwise -> error $ concat ["panic: mismatch: '", show x, "' vs '", show x', "'"]
-        Nothing -> False
+bindVar :: UniVar f a -> State (ScopedVarSigs f) ()
+bindVar (UniVar uni (Var uniq name)) = do
+    ScopedVarSigs free bound <- get
+    let sig    = VarSig name uni
+        bound' = insertUnique uniq sig bound
+    put $ ScopedVarSigs free bound'
 
--- TODO: test me somehow.
-stmtVarSigs' :: ScopedVarSigs f -> Statement f -> ScopedVarSigs f
-stmtVarSigs' sigs (ELet uniVar def) = ScopedVarSigs free $ insertUnique uniq sig bound where
-    UniVar uni (Var uniq name) = uniVar
-    sig = VarSig name uni
-    ScopedVarSigs free bound = exprVarSigs' sigs def
-stmtVarSigs' sigs (EAssert expr) = exprVarSigs' sigs expr
-stmtVarSigs' sigs (EFor uniVar _ _ stmts) =
-    foldl' stmtVarSigs' sigs' (C.unStatements stmts) where
-        sigs' = ScopedVarSigs free $ insertUnique uniq sig bound
-        sig   = VarSig name uni
-        UniVar uni (Var uniq name) = uniVar
-        ScopedVarSigs free bound   = sigs
+freeVar :: UniVar f a -> State (ScopedVarSigs f) ()
+freeVar (UniVar uni (Var uniq name)) = do
+    ScopedVarSigs free bound <- get
+    let sig   = VarSig name uni
+        free' = insertUnique uniq sig free
+    put $ ScopedVarSigs free' bound 
 
+isTracked :: UniVar f a -> State (ScopedVarSigs f) Bool
+isTracked (UniVar uni (Var uniq name)) = do
+    ScopedVarSigs free bound <- get
+    pure $ isTrackedIn free || isTrackedIn bound
+        where
+            sig = VarSig name uni
+            isTrackedIn env =
+                case lookupUnique uniq env of
+                    Just x'
+                        | x' == sig -> True
+                        | otherwise -> error $ concat ["panic: mismatch: '", show sig, "' vs '", show x', "'"]
+                    Nothing -> False
 
-exprVarSigs' :: ScopedVarSigs f -> Expr f a -> ScopedVarSigs f
-exprVarSigs' sigs (EConst _) = sigs
-exprVarSigs' sigs (EVar (UniVar uni (Var uniq name)))
-    | tracked   = sigs
-    | otherwise = ScopedVarSigs (insertUnique uniq sig free) bound
-    where
-        ScopedVarSigs free bound = sigs
-        sig = VarSig name uni
-        tracked = isTracked uniq sig bound || isTracked uniq sig free
-exprVarSigs' sigs (EAppUnOp _ x) = exprVarSigs' sigs x
-exprVarSigs' sigs (EAppBinOp _ x y) = exprVarSigs' (exprVarSigs' sigs x) y
-exprVarSigs' sigs (EIf b x y) = exprVarSigs' (exprVarSigs' (exprVarSigs' sigs b) x) y
+stmtVS :: Statement f -> State (ScopedVarSigs f) ()
+stmtVS (EAssert expr)    = exprVS expr
+stmtVS (ELet uniVar def) = do
+    exprVS def
+    bindVar uniVar
+stmtVS (EFor uniVar _ _ stmts) = do
+    bindVar uniVar
+    traverse_ stmtVS stmts
 
-stmtVarSigs :: Statement f -> ScopedVarSigs f
-stmtVarSigs = stmtVarSigs' $ ScopedVarSigs mempty mempty
+exprVS :: Expr f a -> State (ScopedVarSigs f) ()
+exprVS (EConst _) = pure ()
+exprVS (EVar uniVar) = do
+    tracked <- isTracked uniVar
+    unless tracked $ freeVar uniVar
+exprVS (EAppUnOp _ x) = exprVS x
+exprVS (EAppBinOp _ x y) = do
+    exprVS x
+    exprVS y
+exprVS (EIf b x y) = do
+    exprVS b
+    exprVS x
+    exprVS y
 
-exprVarSigs :: Expr f a -> ScopedVarSigs f
-exprVarSigs = exprVarSigs' $ ScopedVarSigs mempty mempty
+execSVS :: State (ScopedVarSigs f) () -> ScopedVarSigs f
+execSVS s = execState s $ ScopedVarSigs mempty mempty
 
-stmtFreeVarSigs :: Statement f -> Env (VarSig f)
-stmtFreeVarSigs = _scopedVarSigsFree . stmtVarSigs
-
-stmtsFreeVarSigs :: Statements f -> Env (VarSig f)
-stmtsFreeVarSigs = foldMap stmtFreeVarSigs . C.unStatements
-
+-- | Return free variable signatures for a given program
 progFreeVarSigs :: Program f -> Env (VarSig f)
-progFreeVarSigs = stmtsFreeVarSigs . C.unProgram
-
-exprFreeVarSigs :: Expr f a -> Env (VarSig f)
-exprFreeVarSigs = _scopedVarSigsFree . exprVarSigs
-
-stmtSupplyFromAtLeastFree :: MonadSupply m => Statement f -> m ()
-stmtSupplyFromAtLeastFree =
-    supplyFromAtLeast . freeUniqueIntMap . unEnv . _scopedVarSigsFree . stmtVarSigs
+progFreeVarSigs = _scopedVarSigsFree . execSVS . traverse_ stmtVS
 
 stmtsSupplyFromAtLeastFree :: MonadSupply m => Statements f -> m ()
-stmtsSupplyFromAtLeastFree = mapM_ stmtSupplyFromAtLeastFree . C.unStatements
+stmtsSupplyFromAtLeastFree =
+    supplyFromAtLeast 
+    . freeUniqueIntMap
+    . unEnv
+    . _scopedVarSigsFree
+    . execSVS
+    . traverse_ stmtVS
 
-exprSupplyFromAtLeastFree :: MonadSupply m => Expr f a -> m ()
-exprSupplyFromAtLeastFree =
-    supplyFromAtLeast . freeUniqueIntMap . unEnv . _scopedVarSigsFree . exprVarSigs
