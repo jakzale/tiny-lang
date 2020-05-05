@@ -262,7 +262,7 @@ freeVar (UniVar uni (Var uniq name)) = do
     ScopedVarSigs free bound <- get
     let sig   = VarSig name uni
         free' = insertUnique uniq sig free
-    put $ ScopedVarSigs free' bound 
+    put $ ScopedVarSigs free' bound
 
 -- | Check if variable is tracked in bound or free variables
 isTracked :: UniVar f a -> State (ScopedVarSigs f) Bool
@@ -317,7 +317,7 @@ progFreeVarSigs = _scopedVarSigsFree . execSVS . traverse_ stmtVS
 
 stmtsSupplyFromAtLeastFree :: MonadSupply m => Statements f -> m ()
 stmtsSupplyFromAtLeastFree =
-    supplyFromAtLeast 
+    supplyFromAtLeast
     . freeUniqueIntMap
     . unEnv
     . _scopedVarSigsFree
