@@ -308,10 +308,11 @@ boundedArbitraryStmt size
                      , (3, do
                                uniVar <- genFreshUniVar @f @(AField f)
                                modify' (Some uniVar :)
+                               start <- arbitraryM
                                let size' = size - 1
-                                   start = arbitraryM
-                                   end   = arbitraryM
-                               EFor uniVar <$> start <*> end <*> boundedArbitraryStmts size')
+                                   -- NOTE: we also include end < start cases
+                                   end   = choose (start - 5, start + 10)
+                               EFor uniVar start <$> end <*> boundedArbitraryStmts size')
                      ]
 
 -- | Generate an expression of a particular type from a collection of variablesf
