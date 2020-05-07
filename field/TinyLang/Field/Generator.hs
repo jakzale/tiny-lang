@@ -486,6 +486,7 @@ instance (Field f, Arbitrary f) => Arbitrary (Statement f) where
     -- @lhs' == lhs'@ or @rhs' == rhs'@ where @lhs'@ and @rhs'@ are shrunk version of
     -- @lhs@ and @rhs@ respectively (just to have some shrinking that does not break the assertion).
     shrink (EAssert expr) = EAssert <$> shrink expr
+    -- NOTE:  Revisit different strategy for shrink end if test performance degrades
     shrink (EFor uniVar start end stmts) =  efor <$> shrink (start, end, stmts) where
         efor (a, b, c) = EFor uniVar a b c
 
