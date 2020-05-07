@@ -250,19 +250,19 @@ data ScopedVarSigs f = ScopedVarSigs
 
 -- | Add variable to the set of bound variables
 bindVar :: UniVar f a -> State (ScopedVarSigs f) ()
-bindVar (UniVar uni (Var uniq name)) = do
-    ScopedVarSigs free bound <- get
-    let sig    = VarSig name uni
-        bound' = insertUnique uniq sig bound
-    put $ ScopedVarSigs free bound'
+bindVar (UniVar uni (Var uniq name)) =
+    modify $ \(ScopedVarSigs free bound) ->
+        let sig    = VarSig name uni
+            bound' = insertUnique uniq sig bound
+        in ScopedVarSigs free bound'
 
 -- | Add variable to the set of free variables
 freeVar :: UniVar f a -> State (ScopedVarSigs f) ()
-freeVar (UniVar uni (Var uniq name)) = do
-    ScopedVarSigs free bound <- get
-    let sig   = VarSig name uni
-        free' = insertUnique uniq sig free
-    put $ ScopedVarSigs free' bound
+freeVar (UniVar uni (Var uniq name)) =
+    modify $ \(ScopedVarSigs free bound) ->
+        let sig   = VarSig name uni
+            free' = insertUnique uniq sig free
+        in ScopedVarSigs free' bound
 
 -- | Check if variable is tracked in bound or free variables
 isTracked :: UniVar f a -> State (ScopedVarSigs f) Bool
