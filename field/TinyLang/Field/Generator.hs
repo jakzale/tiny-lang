@@ -305,7 +305,7 @@ boundedArbitraryStmt size
                                x <- boundedArbitraryExpr vars size'
                                pure $ EAssert $ EAppBinOp binOp x x)
                      -- generate a for loop
-                     , (3, do
+                     , (1, do
                                uniVar <- genFreshUniVar @f @(AField f)
                                modify' (Some uniVar :)
                                start <- arbitraryM
