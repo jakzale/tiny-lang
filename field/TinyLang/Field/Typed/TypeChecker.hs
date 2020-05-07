@@ -218,7 +218,7 @@ checkExpr m = do
     SomeOf mUni tM <- inferExpr m
     let uni = knownUni @f @a
     let uniMismatch = typeMismatch tM uni mUni
-    withGeqUniM uni mUni uniMismatch $ tM
+    withGeqUniM uni mUni uniMismatch tM
 
 checkProgram
     :: forall m f. (MonadTypeChecker m, TextField f)
@@ -232,13 +232,13 @@ checkStatement
     :: forall m f. (MonadTypeChecker m, TextField f)
     => R.Statement R.Var f -> m (T.Statement f)
 checkStatement (R.ELet var m) = do
-    Some (uniVar@(T.UniVar uni _)) <- inferUniVar var
-    T.withKnownUni uni $ (T.ELet uniVar) <$> checkExpr m
-checkStatement (R.EAssert m) = do
+    Some uniVar@(T.UniVar uni _) <- inferUniVar var
+    T.withKnownUni uni $ T.ELet uniVar <$> checkExpr m
+checkStatement (R.EAssert m) =
     T.EAssert <$> checkExpr m
 checkStatement (R.EFor var start end stmts) = do
     tVar <- makeVar $ R.unVar var
-    T.EFor (T.UniVar Field tVar) start end . T.mkStatements <$> mapM checkStatement (R.unStatements stmts)
+    T.EFor (T.UniVar Field tVar) start end <$> traverse checkStatement stmts
 
 {-| Error message for a failed type equality
 -}
