@@ -9,8 +9,7 @@ import           TinyLang.Field.Typed.Core
 import           Control.Monad.Cont
 
 renameProgram :: MonadSupply m => Program f -> m (Program f)
-renameProgram prog = do
-    let stmts = unProgram prog
+renameProgram prog | stmts <- unProgram prog = do
     stmtsSupplyFromAtLeastFree stmts
     mkProgram <$> runRenameM (withRenamedStatementsM stmts pure)
 
@@ -46,9 +45,8 @@ withRenamedStatementM (EFor (UniVar uni var) start end stmts) kont =
             kont $ EFor (UniVar uni varFr) start end stmtsRen
 
 withRenamedStatementsM :: Statements f -> (Statements f -> RenameM c) -> RenameM c
-withRenamedStatementsM stmts kont =
-    runContT (traverse (ContT . withRenamedStatementM) stmts') $ kont . mkStatements where
-    stmts' = unStatements stmts
+withRenamedStatementsM stmts' kont | stmts <- unStatements stmts' =
+    runContT (traverse (ContT . withRenamedStatementM) stmts) $ kont . mkStatements
 
 
 renameExprM :: Expr f a -> RenameM (Expr f a)
