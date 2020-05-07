@@ -164,7 +164,7 @@ evalProgramUni env = flip execStateT env . evalStatementsUni . unProgram
 
 evalStatementsUni :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
     => Statements f -> StateT (Env (SomeUniConst f)) m ()
-evalStatementsUni = mapM_ evalStatementUni . unStatements
+evalStatementsUni = traverse_ evalStatementUni
 
 evalStatementUni :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
     => Statement f -> StateT  (Env (SomeUniConst f)) m ()
