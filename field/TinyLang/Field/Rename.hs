@@ -12,7 +12,7 @@ renameProgram :: MonadSupply m => Program f -> m (Program f)
 renameProgram prog = do
     let stmts = unProgram prog
     stmtsSupplyFromAtLeastFree stmts
-    mkProgram <$> (runRenameM $ withRenamedStatementsM stmts pure)
+    mkProgram <$> runRenameM (withRenamedStatementsM stmts pure)
 
 type RenameM = ReaderT (Env Unique) Supply
 

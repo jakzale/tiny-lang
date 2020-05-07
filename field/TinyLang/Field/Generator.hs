@@ -258,7 +258,7 @@ type SGen f a = SGenT f Identity a
 
 -- Not sure if this is the right type
 runSGenT :: (Monad m) => Vars f -> SGenT f m a -> Gen (m a)
-runSGenT vars = fmap ((flip evalStateT) vars) . fmap (runSupplyT) . runGenT . unSGenT
+runSGenT vars = fmap ((`evalStateT` vars) . runSupplyT) . runGenT . unSGenT
 
 runSGen :: Vars f -> SGen f a -> Gen a
 runSGen vars = fmap runIdentity . runSGenT vars
@@ -420,7 +420,7 @@ defaultUniConst :: forall f a. (KnownUni f a, Field f) => UniConst f a
 defaultUniConst =
     UniConst uni $ case uni of
         Bool   -> True
-        Field  -> fromInteger 101
+        Field  -> 101
         Vector -> Vector.fromList [False, True, True, True, False, False, True]
     where
         uni = knownUni @f @a

@@ -135,7 +135,7 @@ mkSomeUniVar var
 -}
 inferUniVar
     :: forall m f. (MonadSupply m, MonadScope m) => R.Var -> m (T.SomeUniVar f)
-inferUniVar = liftM mkSomeUniVar . makeVar . R.unVar
+inferUniVar = fmap mkSomeUniVar . makeVar . R.unVar
 
 {-| Type inference for expressions
 -}
@@ -158,7 +158,7 @@ inferExpr (R.EIf l m n) = do
     SomeOf uni tM <- inferExpr m
     tN <- T.withKnownUni uni $ checkExpr n
     pure $ SomeOf uni $ T.EIf tL tM tN
-inferExpr (R.ETypeAnn u m) = do
+inferExpr (R.ETypeAnn u m) =
     case u of
         Some uni -> T.withKnownUni uni $ SomeOf uni <$> checkExpr m
 
