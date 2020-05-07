@@ -10,8 +10,8 @@ For the new API please refer to "TinyLang.Field.Raw.Parser".
 module TinyLang.Field.Typed.Parser
     ( parseScopedProgram
     , parseProgram
-    , parseScopedProgram'
-    , parseProgram'
+    , parseScopedProgramFrom
+    , parseProgramFrom
     ) where
 
 import           TinyLang.Prelude                 hiding (many, option, some,
@@ -37,10 +37,10 @@ instance TextField f => IsString (Program f) where
 -- | Parse a @String@ and return @Either@ an error message or an @Program@ of some type.
 -- If the result is an error, then return the latest 'Scope', otherwise return the 'Scope'
 -- consisting of all free variables of the expression.
-parseScopedProgram'
+parseScopedProgramFrom
     :: forall f m. (MonadError String m, MonadSupply m, TextField f)
     => String -> String -> m (Scoped (Program f))
-parseScopedProgram' fileName str = do
+parseScopedProgramFrom fileName str = do
     progRaw <- parseString (pTop @f) fileName str
     Scoped scopeTotal progTyped <- typeProgram progRaw
     progTypedRen <- renameProgram progTyped
@@ -49,18 +49,18 @@ parseScopedProgram' fileName str = do
         scopeFree = Map.filter isFree scopeTotal
     return $ Scoped scopeFree progTypedRen
 
-parseProgram'
+parseProgramFrom
     :: forall f m. (MonadError String m, MonadSupply m, TextField f)
     => String -> String -> m (Program f)
-parseProgram' fileName = fmap _scopedValue . parseScopedProgram' fileName
+parseProgramFrom fileName = fmap _scopedValue . parseScopedProgramFrom fileName
 
 parseScopedProgram
     :: forall f m. (MonadError String m, MonadSupply m, TextField f)
     => String -> m (Scoped (Program f))
-parseScopedProgram = parseScopedProgram' ""
+parseScopedProgram = parseScopedProgramFrom ""
 
 -- | Convenience version of @parseScopedProgram'@ with an empty file name.
 parseProgram
     :: forall f m. (MonadError String m, MonadSupply m, TextField f)
     => String -> m (Program f)
-parseProgram = parseProgram' ""
+parseProgram = parseProgramFrom ""

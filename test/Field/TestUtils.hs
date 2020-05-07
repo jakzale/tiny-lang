@@ -43,7 +43,7 @@ parseFilePath filePath =
 
 typeCheckFilePath :: FilePath -> IO (Either String (Program Rational))
 typeCheckFilePath filePath =
-    runSupplyT . parseProgram' fileName <$> readFile filePath where
+    runSupplyT . parseProgramFrom fileName <$> readFile filePath where
     fileName = takeFileName filePath
 
 discoverTests :: String -> FilePath -> (FilePath -> TestTree) -> IO TestTree
