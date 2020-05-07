@@ -178,12 +178,12 @@ evalStatementUni (EAssert expr) = do
     unless exprR $ throwError $ AssertionFailedEvalError expr
 evalStatementUni (EFor (UniVar _ var) start end stmts)
     | start <= end = mapM_ iteration [start .. end]
-    | otherwise    = modify' $ insertVar var (Some $ fromInteger actualEnd)
+    -- NOTE: start > end
+    | otherwise    = modify' $ insertVar var (Some $ fromInteger start)
     where
           iteration i = do
               modify' $ insertVar var (Some $ fromInteger i)
               evalStatementsUni stmts
-          actualEnd = max start end
 
 
 -- Note that we could use dependent maps, but we don't.
