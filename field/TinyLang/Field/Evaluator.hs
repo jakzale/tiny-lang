@@ -306,7 +306,7 @@ instStatement env (EFor uniVar start end stmts) = EFor uniVar start end <$> inst
 
 instStatements :: MonadEvalError f m
     => Env (SomeUniConst f) -> Statements f -> m (Statements f)
-instStatements env = fmap mkStatements . mapM (instStatement env) . unStatements
+instStatements env = traverse (instStatement env)
 
 -- | Instantiate some of the variables of an expression with values.
 instExpr :: MonadEvalError f m => Env (SomeUniConst f) -> Expr f a -> m (Expr f a)
