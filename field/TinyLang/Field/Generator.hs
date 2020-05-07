@@ -453,21 +453,21 @@ instance (Field f, Arbitrary f) => Arbitrary (Statements f) where
         norm ((EFor forVar start end body) : restStmts) | [] <- unStatements body =
                 pure $ ELet forVar (EConst (fromInteger (max start end))) : restStmts
         norm ((EAssert (EConst (UniConst _ True))) : restStmts) =
-                pure $ restStmts
+                pure restStmts
         norm (stmt : restStmts) = (stmt :) <$> norm restStmts
         -- no normalisations performed, abort
         norm [] = Nothing
 
         -- preserves the structure of statements
         shrunkPreserving :: [[Statement f]]
-        shrunkPreserving = shrinkList' shrink stmts'
+        shrunkPreserving = shrinkElements shrink stmts'
         -- does not preserve the structure of statements
         shrunkNonPreserving :: [[Statement f]]
         shrunkNonPreserving = shrinkList shrink stmts'
 
 -- A modified shrinkList, that preserves the structure of the underlying list
-shrinkList' :: (a -> [a]) -> [a] -> [[a]]
-shrinkList' shr = shrinkOne where
+shrinkElements :: (a -> [a]) -> [a] -> [[a]]
+shrinkElements shr = shrinkOne where
   shrinkOne []     = []
   shrinkOne (x:xs) = [ x':xs | x'  <- shr x ]
                   ++ [ x:xs' | xs' <- shrinkOne xs ]
