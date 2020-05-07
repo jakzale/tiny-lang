@@ -49,7 +49,7 @@ forgetStatementIDs (ELet uvar d)  = ELet (forgetID uvar) (forgetIDs d)
 forgetStatementIDs (EAssert expr) = EAssert $ forgetIDs expr
 forgetStatementIDs (EFor uvar start end stmts) =
     EFor (forgetID uvar) start end stmts' where
-    stmts' = forgetStatementIDs <$> stmts
+        stmts' = forgetStatementIDs <$> stmts
 
 forgetIDs :: Expr f a -> Expr f a
 forgetIDs (EConst uval)        = EConst uval
