@@ -254,6 +254,9 @@ normStatements env0 = fmap mkStatements . go env0 . unStatements where
             -- Drop EAssert True
             EAssert (EConst (UniConst _ True)) ->
                 go env rest
+            -- Explode on EAssert False
+            EAssert e@(EConst (UniConst _ False)) ->
+                throwError $ AssertionFailedEvalError e
             _  ->
                 (:) stmtN <$> go env rest
 
