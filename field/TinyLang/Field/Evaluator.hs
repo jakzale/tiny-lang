@@ -122,7 +122,7 @@ normUniConst (UniConst Field  f) = return $ UniConst Field  f
 normUniConst (UniConst Vector v) = UniConst Vector <$> normUnpacking v where
     normUnpacking =
         asIntegerEval . toField @(AField f) . packPositiveAsc >=>
-            fmap (Vector.fromList) . unpackPositiveAsc
+            fmap Vector.fromList . unpackPositiveAsc
 
 -- | We want to allow order comparisons on elements of the field, but only
 -- if they're integers (whatever that means), and only if they're positive.
@@ -160,7 +160,7 @@ evalBinOp BAt x y = asIntegerEval x >>= fmap (UniConst Bool) . flip atEval y . f
 
 evalProgramUni :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
     => Env (SomeUniConst f) -> Program f -> m (Env (SomeUniConst f))
-evalProgramUni env = (flip execStateT) env . evalStatementsUni . unProgram
+evalProgramUni env = flip execStateT env . evalStatementsUni . unProgram
 
 evalStatementsUni :: (MonadEvalError f m, Eq f, Field f, AsInteger f)
     => Statements f -> StateT (Env (SomeUniConst f)) m ()
