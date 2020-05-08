@@ -160,14 +160,14 @@ program ::=
 
 == Variable declarations
 
-  We declare input or external variables using the @declare@ keyword.
+  We declare input or external variables using the @ext@ keyword.
 
 @
 declarations ::=
     (declaration ";")*
 
 declaration ::=
-    "declare" var
+    "ext" var
 @
 
 == Operator Precedence
@@ -245,7 +245,7 @@ keywords =
     , "for", "do", "end"
     , "if", "then", "else"
     , "bool", "field", "vector"
-    , "declare"
+    , "ext"
     ]
 
 isKeyword :: String -> Bool
@@ -403,7 +403,7 @@ pStatements =
 
 -- Parsing Declarations
 pDeclaration :: ParserT m Var
-pDeclaration = keyword "declare" *> pVar
+pDeclaration = keyword "ext" *> pVar
 
 pDeclarations :: ParserT m [Var]
 pDeclarations = many (pDeclaration <* symbol ";")
