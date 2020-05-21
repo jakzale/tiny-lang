@@ -271,7 +271,7 @@ pVecLiteral =
         between
             (symbol "{")
             (symbol "}")
-            (pBoolLiteral `sepBy` (symbol ","))
+            pBoolLiteral `sepBy` symbol ","
 
 pIntLiteral :: ParserT m Integer
 pIntLiteral = signedDecimal
@@ -403,7 +403,7 @@ pDeclarations :: ParserT m [Var]
 pDeclarations = many (pDeclaration <* symbol ";")
 
 pProgram :: Field f => ParserT m (RawProgram f)
-pProgram = Program <$> pDeclarations <*> pStatements
+pProgram = Program <$> pStatements
 
 pTop :: Field f => ParserT m (RawProgram f)
 pTop = top pProgram
