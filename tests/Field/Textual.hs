@@ -93,7 +93,7 @@ parsePrintFilePath :: FilePath -> IO String
 parsePrintFilePath filePath = either id (progToString WithIDs) <$> typeCheckFilePath filePath
 
 testDir :: FilePath
-testDir = "test" </> "Field" </> "golden"
+testDir = "tests" </> "Field" </> "golden"
 
 genTest :: FilePath -> TestTree
 genTest filePath = goldenVsString name golden action

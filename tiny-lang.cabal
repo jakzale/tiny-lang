@@ -91,7 +91,7 @@ benchmark bench-generators
 test-suite tiny-lang-test
     type: exitcode-stdio-1.0
     main-is: Main.hs
-    hs-source-dirs: test
+    hs-source-dirs: tests
     other-modules:
         Field.Textual
         Field.Axioms

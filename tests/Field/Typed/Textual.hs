@@ -12,7 +12,7 @@ import           Test.Tasty
 import           Test.Tasty.Golden
 
 testDir :: FilePath
-testDir = "test" </> "Field" </> "Typed" </> "golden"
+testDir = "tests" </> "Field" </> "Typed" </> "golden"
 
 genTest :: FilePath -> TestTree
 genTest filePath = goldenVsString name golden action
