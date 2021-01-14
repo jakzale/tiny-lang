@@ -1,12 +1,9 @@
 cradle:
   stack:
-    - path: "library"
+    - path: "src"
       component: "tiny-lang:lib"
-    - path: "common"
       component: "tiny-lang:lib"
-    - path: "field"
-      component: "tiny-lang:lib"
-    - path: "./test"
+    - path: "tests"
       component: "tiny-lang:tiny-lang-test"
-    - path: "./bench"
+    - path: "benches"
       component: "tiny-lang:bench-generators"
