@@ -1,3 +1,9 @@
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE ExplicitForAll #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
+
 {- A simple printer/parser test: generate a random expression and see if
    you get the same thing back (modulo uniques) when you convert it to
    a string and then parse it again.

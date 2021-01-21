@@ -1,3 +1,7 @@
+{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE ExplicitForAll #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+
 -- | QuickCheck tests for classes claiming to implement 'Field'
 
 module Field.Axioms
