@@ -95,18 +95,18 @@ test-suite tiny-lang-test
     build-depends:
         tiny-lang,
         base >= 4.7 && < 5,
-        mtl,
-        containers,
+        Glob,
         QuickCheck,
         QuickCheck-GenT,
-        filepath,
+        containers,
         directory,
-        Glob,
+        filepath,
+        interpolate,
+        mtl,
         tasty,
         tasty-golden,
         tasty-hunit,
-        tasty-quickcheck,
-        interpolate
+        tasty-quickcheck
     ghc-options:
         -threaded -rtsopts -with-rtsopts=-N
         -Wall
